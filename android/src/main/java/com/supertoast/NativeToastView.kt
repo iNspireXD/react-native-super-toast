@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
+import android.util.Base64
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
@@ -164,7 +165,38 @@ class NativeToastView(
     when {
       uri.startsWith("http://") || uri.startsWith("https://") -> loadNetworkImage(uri)
       uri.startsWith("asset:/") -> loadAssetImage(uri)
+      uri.startsWith("data:image/") -> loadDataUri(uri)
+      Uri.parse(uri).scheme == null -> loadDrawableResource(uri)
       else -> setImageURI(Uri.parse(uri))
+    }
+  }
+
+  private fun ImageView.loadDrawableResource(name: String) {
+    try {
+      val normalizedName = name.lowercase().replace("-", "_")
+      val resourceId = resources.getIdentifier(
+        normalizedName,
+        "drawable",
+        context.packageName
+      )
+
+      if (resourceId != 0) {
+        setImageResource(resourceId)
+      }
+    } catch (_: Throwable) {
+      // Icon loading must never crash toast rendering.
+    }
+  }
+
+  private fun ImageView.loadDataUri(uri: String) {
+    try {
+      val encoded = uri.substringAfter(',', missingDelimiterValue = "")
+      if (encoded.isEmpty()) return
+
+      val bytes = Base64.decode(encoded, Base64.DEFAULT)
+      setImageBitmap(BitmapFactory.decodeByteArray(bytes, 0, bytes.size))
+    } catch (_: Throwable) {
+      // Icon loading must never crash toast rendering.
     }
   }
 

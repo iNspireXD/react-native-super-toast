@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Button,
   Modal,
@@ -9,8 +9,9 @@ import {
   View,
 } from 'react-native';
 
-import SuperToast, { fontIcon, SuperToastHost } from 'react-native-super-toast';
-// import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import SuperToast, { SuperToastHost } from 'react-native-super-toast';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { EvilIcons } from '@react-native-vector-icons/evil-icons';
 // or use the static version to embed the font at build time instead of loading it at runtime
 
 export default function App() {
@@ -18,12 +19,19 @@ export default function App() {
   const [transparentModalVisible, setTransparentModalVisible] = useState(false);
   const loadingToastId = useRef<string | null>(null);
 
-  // const rocketSource = React.useMemo(() => {
-  //   return FontAwesomeFreeSolid.getImageSourceSync('rocket', {
-  //     size: 30,
-  //     color: '#900',
-  //   });
-  // }, []);
+  const rocketSource = useMemo(() => {
+    return FontAwesomeFreeSolid.getImageSourceSync('rocket', {
+      size: 30,
+      color: '#FFFFFF',
+    });
+  }, []);
+
+  const loaderSource = useMemo(() => {
+    return EvilIcons.getImageSourceSync('spinner-3', {
+      size: 24,
+      color: '#ffffff',
+    });
+  }, []);
 
   useEffect(() => {
     SuperToast.configure({
@@ -31,19 +39,19 @@ export default function App() {
       duration: 3000,
       animation: 'slide',
       widthMode: 'screen',
-      topOffset: 58,
+      topOffset: 65,
       bottomOffset: 24,
       horizontalMargin: 16,
       maxWidth: 340,
-      borderRadius: 18,
+      borderRadius: 8,
       paddingHorizontal: 16,
       paddingVertical: 13,
       gap: 10,
       titleSize: 15,
       messageSize: 13,
-      swipeToDismiss: true,
+      swipeToDismiss: false,
       closeOnPress: true,
-      queue: true,
+      queue: false,
       haptic: false,
     });
   }, []);
@@ -62,9 +70,9 @@ export default function App() {
       message: `PNG asset triggered from ${source}.`,
       icon: {
         type: 'image',
-        source: require('../assets/10241.png'),
+        source: require('../assets/logo.png'),
         size: 24,
-        tintColor: '#FFFFFF',
+        cornerRadius: 4,
       },
       backgroundColor: '#064E3B',
       titleColor: '#FFFFFF',
@@ -72,20 +80,20 @@ export default function App() {
     });
   }
 
-  // function showFontIcon(source: string) {
-  //   SuperToast.show({
-  //     title: 'Font/vector icon',
-  //     message: `Native icon font glyph triggered from ${source}.`,
-  //     icon: {
-  //       type: 'image',
-  //       source: rocketSource,
-  //       size: 30,
-  //     },
-  //     backgroundColor: '#1E293B',
-  //     titleColor: '#FFFFFF',
-  //     messageColor: '#CBD5E1',
-  //   });
-  // }
+  function showFontIcon(source: string) {
+    SuperToast.show({
+      title: 'Font/vector icon',
+      message: `Native icon font glyph triggered from ${source}.`,
+      icon: {
+        type: 'image',
+        source: rocketSource,
+        size: 30,
+      },
+      backgroundColor: '#1E293B',
+      titleColor: '#FFFFFF',
+      messageColor: '#CBD5E1',
+    });
+  }
 
   function showLoadingIcon(source: string) {
     if (loadingToastId.current) {
@@ -95,12 +103,12 @@ export default function App() {
     loadingToastId.current = SuperToast.loading({
       title: 'Uploading',
       message: `Persistent toast triggered from ${source}.`,
-      icon: fontIcon({
-        glyph: '\ue2c6',
-        fontFamily: 'Material Icons',
-        size: 22,
-        color: '#FFFFFF',
-      }),
+      icon: {
+        type: 'image',
+        source: loaderSource,
+        size: 24,
+        // tintColor: '#FFFFFF', // Optional tintColor for the loading icon
+      },
       duration: 0,
       closeOnPress: false,
       swipeToDismiss: false,
@@ -149,10 +157,10 @@ export default function App() {
 
           <View style={styles.gap} />
 
-          {/* <Button
+          <Button
             title="Show font/vector icon toast"
             onPress={() => showFontIcon('main screen')}
-          /> */}
+          />
 
           <View style={styles.gap} />
 
@@ -220,10 +228,10 @@ export default function App() {
 
               <View style={styles.gap} />
 
-              {/* <Button
+              <Button
                 title="Font/vector icon above modal"
                 onPress={() => showFontIcon('pageSheet modal')}
-              /> */}
+              />
 
               <View style={styles.gap} />
 
@@ -254,6 +262,7 @@ export default function App() {
         visible={transparentModalVisible}
         animationType="fade"
         transparent
+        statusBarTranslucent
         onRequestClose={() => setTransparentModalVisible(false)}
       >
         <View style={styles.transparentBackdrop}>
@@ -278,10 +287,10 @@ export default function App() {
 
             <View style={styles.gap} />
 
-            {/* <Button
+            <Button
               title="Font/vector icon above transparent modal"
               onPress={() => showFontIcon('transparent modal')}
-            /> */}
+            />
 
             <View style={styles.gap} />
 
