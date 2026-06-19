@@ -1,5 +1,6 @@
 package com.supertoast
 
+import android.view.HapticFeedbackConstants
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.UiThreadUtil
@@ -25,6 +26,14 @@ class SuperToastModule(private val reactContext: ReactApplicationContext) : Nati
 
   override fun configure(defaults: ReadableMap) {
     UiThreadUtil.runOnUiThread { host.configure(defaults) }
+  }
+
+  override fun triggerHaptic() {
+    UiThreadUtil.runOnUiThread {
+      reactContext.currentActivity?.window?.decorView?.performHapticFeedback(
+        HapticFeedbackConstants.KEYBOARD_TAP
+      )
+    }
   }
 
   companion object {

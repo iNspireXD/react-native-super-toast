@@ -591,6 +591,14 @@ RCT_EXPORT_MODULE(SuperToast)
   dispatch_async(dispatch_get_main_queue(), ^{ [STToastManager.shared configure:defaults ?: @{}]; });
 }
 
+- (void)triggerHaptic {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    UIImpactFeedbackGenerator *generator =
+      [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    [generator impactOccurred];
+  });
+}
+
 #ifdef RCT_NEW_ARCH_ENABLED
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:(const facebook::react::ObjCTurboModule::InitParams &)params
 {

@@ -2,7 +2,8 @@ import { Image } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 
 import NativeSuperToast from './NativeSuperToast';
-import type { NativeToastIcon, NativeToastOptions } from './NativeSuperToast';
+import SuperToastHost from './SuperToastHost';
+import type { NativeToastIcon, NativeToastOptions } from './nativeTypes';
 import type {
   ShowToastInput,
   ToastDefaults,
@@ -11,6 +12,7 @@ import type {
   ToastKind,
   ToastOptions,
 } from './types';
+export { SuperToastHost };
 
 export type {
   ShowToastInput,

@@ -1,0 +1,178 @@
+import { TurboModuleRegistry } from 'react-native';
+
+import type { NativeToastOptions, Spec } from './nativeTypes';
+
+export type ResolvedToast = Required<
+  Pick<
+    NativeToastOptions,
+    | 'id'
+    | 'kind'
+    | 'duration'
+    | 'position'
+    | 'widthMode'
+    | 'animation'
+    | 'topOffset'
+    | 'bottomOffset'
+    | 'maxWidth'
+    | 'horizontalMargin'
+    | 'backgroundColor'
+    | 'titleColor'
+    | 'messageColor'
+    | 'iconColor'
+    | 'borderColor'
+    | 'borderWidth'
+    | 'borderRadius'
+    | 'paddingHorizontal'
+    | 'paddingVertical'
+    | 'gap'
+    | 'titleSize'
+    | 'messageSize'
+    | 'elevation'
+    | 'shadowOpacity'
+    | 'swipeToDismiss'
+    | 'closeOnPress'
+    | 'haptic'
+    | 'queue'
+  >
+> &
+  Pick<NativeToastOptions, 'title' | 'message' | 'icon'>;
+
+type ToastSnapshot = {
+  current: ResolvedToast | null;
+  dismissing: boolean;
+};
+
+const palette = {
+  default: { background: '#1F2937', icon: '#FFFFFF' },
+  success: { background: '#166534', icon: '#BBF7D0' },
+  error: { background: '#7F1D1D', icon: '#FECACA' },
+  warning: { background: '#713F12', icon: '#FEF08A' },
+  info: { background: '#1E40AF', icon: '#BFDBFE' },
+  loading: { background: '#3F3F46', icon: '#FFFFFF' },
+} as const;
+
+const initialDefaults: Omit<
+  ResolvedToast,
+  'id' | 'title' | 'message' | 'icon'
+> = {
+  kind: 'default',
+  duration: 3000,
+  position: 'top',
+  widthMode: 'content',
+  animation: 'slide',
+  topOffset: 48,
+  bottomOffset: 48,
+  maxWidth: 420,
+  horizontalMargin: 16,
+  backgroundColor: palette.default.background,
+  titleColor: '#FFFFFF',
+  messageColor: '#FFFFFF',
+  iconColor: palette.default.icon,
+  borderColor: 'transparent',
+  borderWidth: 0,
+  borderRadius: 14,
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  gap: 8,
+  titleSize: 15,
+  messageSize: 14,
+  elevation: 8,
+  shadowOpacity: 0.18,
+  swipeToDismiss: true,
+  closeOnPress: false,
+  haptic: false,
+  queue: true,
+};
+
+let defaults: NativeToastOptions = {};
+let current: ResolvedToast | null = null;
+let toastQueue: ResolvedToast[] = [];
+let dismissing = false;
+let snapshot: ToastSnapshot = { current, dismissing };
+const listeners = new Set<() => void>();
+
+function makeId(): string {
+  return `super-toast-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function emit(): void {
+  snapshot = { current, dismissing };
+  listeners.forEach((listener) => listener());
+}
+
+function resolveToast(options: NativeToastOptions): ResolvedToast {
+  const merged = { ...defaults, ...options };
+  const kind = merged.kind ?? initialDefaults.kind;
+  const colors = palette[kind as keyof typeof palette] ?? palette.default;
+
+  return {
+    ...initialDefaults,
+    ...merged,
+    id: merged.id ?? makeId(),
+    kind,
+    backgroundColor: merged.backgroundColor ?? colors.background,
+    iconColor: merged.iconColor ?? colors.icon,
+  };
+}
+
+export function show(options: NativeToastOptions): string {
+  const toast = resolveToast(options);
+
+  if (!toast.queue) {
+    toastQueue = [];
+    current = toast;
+    dismissing = false;
+    emit();
+  } else if (current) {
+    toastQueue = [...toastQueue, toast];
+  } else {
+    current = toast;
+    dismissing = false;
+    emit();
+  }
+
+  return toast.id;
+}
+
+export function dismiss(id: string | null): void {
+  if (!id || current?.id === id) {
+    if (current && !dismissing) {
+      dismissing = true;
+      emit();
+    }
+    return;
+  }
+
+  toastQueue = toastQueue.filter((toast) => toast.id !== id);
+}
+
+export function dismissAll(): void {
+  toastQueue = [];
+  dismiss(null);
+}
+
+export function configure(nextDefaults: NativeToastOptions): void {
+  defaults = { ...defaults, ...nextDefaults };
+}
+
+export function completeDismiss(id: string): void {
+  if (current?.id !== id) return;
+
+  current = toastQueue[0] ?? null;
+  toastQueue = toastQueue.slice(1);
+  dismissing = false;
+  emit();
+}
+
+export function triggerHaptic(): void {
+  TurboModuleRegistry.get<Spec>('SuperToast')?.triggerHaptic();
+}
+
+export function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function getSnapshot(): ToastSnapshot {
+  return snapshot;
+}

@@ -1,26 +1,61 @@
 # react-native-super-toast
 
-A performant toast library that renders above everything, including modals and bottom sheets
+A performant toast library that renders above everything, including modals and
+bottom sheets.
 
 ## Installation
 
-
 ```sh
-npm install react-native-super-toast
+npm install react-native-super-toast react-native-screens
 ```
 
+On iOS, install the native pods after adding the packages:
+
+```sh
+npx pod-install
+```
+
+## Setup
+
+Mount `SuperToastHost` once near the root of the app. On iOS it uses
+`FullWindowOverlay` from `react-native-screens`; on Android it renders nothing
+because Android uses the native dialog host.
+
+```tsx
+import { SuperToastHost } from 'react-native-super-toast';
+
+export default function App() {
+  return (
+    <>
+      <YourApp />
+      <SuperToastHost />
+    </>
+  );
+}
+```
 
 ## Usage
 
+```tsx
+import SuperToast from 'react-native-super-toast';
 
-```js
-import { multiply } from 'react-native-super-toast';
+SuperToast.success({
+  title: 'Saved',
+  message: 'Your changes are ready.',
+  icon: '✓',
+});
 
-// ...
+const loadingId = SuperToast.loading({
+  title: 'Uploading',
+  duration: 0,
+});
 
-const result = multiply(3, 7);
+SuperToast.dismiss(loadingId);
 ```
 
+The host supports top, center, and bottom positioning, content or screen width,
+queueing, slide/fade/scale animations, image and font icons, press or swipe
+dismissal, haptics, and persistent toasts.
 
 ## Contributing
 

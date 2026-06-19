@@ -1,20 +1,15 @@
 import type { TurboModule } from 'react-native';
-import { TurboModuleRegistry } from 'react-native';
 
 export type NativeToastIcon = {
   type?: string;
-
   value?: string;
-
   glyph?: string;
   fontFamily?: string;
-
   uri?: string;
   width?: number;
   height?: number;
   size?: number;
   scale?: number;
-
   color?: string;
   tintColor?: string;
   cornerRadius?: number;
@@ -61,5 +56,3 @@ export interface Spec extends TurboModule {
   configure(defaults: NativeToastOptions): void;
   triggerHaptic(): void;
 }
-
-export default TurboModuleRegistry.getEnforcing<Spec>('SuperToast');

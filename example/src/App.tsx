@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   Modal,
@@ -9,8 +9,8 @@ import {
   View,
 } from 'react-native';
 
-import SuperToast, { fontIcon } from 'react-native-super-toast';
-import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import SuperToast, { fontIcon, SuperToastHost } from 'react-native-super-toast';
+// import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 // or use the static version to embed the font at build time instead of loading it at runtime
 
 export default function App() {
@@ -18,12 +18,12 @@ export default function App() {
   const [transparentModalVisible, setTransparentModalVisible] = useState(false);
   const loadingToastId = useRef<string | null>(null);
 
-  const rocketSource = React.useMemo(() => {
-    return FontAwesomeFreeSolid.getImageSourceSync('rocket', {
-      size: 30,
-      color: '#900',
-    });
-  }, []);
+  // const rocketSource = React.useMemo(() => {
+  //   return FontAwesomeFreeSolid.getImageSourceSync('rocket', {
+  //     size: 30,
+  //     color: '#900',
+  //   });
+  // }, []);
 
   useEffect(() => {
     SuperToast.configure({
@@ -72,20 +72,20 @@ export default function App() {
     });
   }
 
-  function showFontIcon(source: string) {
-    SuperToast.show({
-      title: 'Font/vector icon',
-      message: `Native icon font glyph triggered from ${source}.`,
-      icon: {
-        type: 'image',
-        source: rocketSource,
-        size: 30,
-      },
-      backgroundColor: '#1E293B',
-      titleColor: '#FFFFFF',
-      messageColor: '#CBD5E1',
-    });
-  }
+  // function showFontIcon(source: string) {
+  //   SuperToast.show({
+  //     title: 'Font/vector icon',
+  //     message: `Native icon font glyph triggered from ${source}.`,
+  //     icon: {
+  //       type: 'image',
+  //       source: rocketSource,
+  //       size: 30,
+  //     },
+  //     backgroundColor: '#1E293B',
+  //     titleColor: '#FFFFFF',
+  //     messageColor: '#CBD5E1',
+  //   });
+  // }
 
   function showLoadingIcon(source: string) {
     if (loadingToastId.current) {
@@ -149,10 +149,10 @@ export default function App() {
 
           <View style={styles.gap} />
 
-          <Button
+          {/* <Button
             title="Show font/vector icon toast"
             onPress={() => showFontIcon('main screen')}
-          />
+          /> */}
 
           <View style={styles.gap} />
 
@@ -220,10 +220,10 @@ export default function App() {
 
               <View style={styles.gap} />
 
-              <Button
+              {/* <Button
                 title="Font/vector icon above modal"
                 onPress={() => showFontIcon('pageSheet modal')}
-              />
+              /> */}
 
               <View style={styles.gap} />
 
@@ -278,10 +278,10 @@ export default function App() {
 
             <View style={styles.gap} />
 
-            <Button
+            {/* <Button
               title="Font/vector icon above transparent modal"
               onPress={() => showFontIcon('transparent modal')}
-            />
+            /> */}
 
             <View style={styles.gap} />
 
@@ -306,6 +306,8 @@ export default function App() {
           </View>
         </View>
       </Modal>
+
+      <SuperToastHost />
     </SafeAreaView>
   );
 }
