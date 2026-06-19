@@ -202,15 +202,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   /**
-   * Android Dialog, BottomSheetModal, and RN Modal windows are separate
-   * WindowManager windows.
-   *
-   * If a modal/bottom sheet opens after the toast, that newer window can be
-   * stacked above the toast. To keep the toast above everything, we recreate
-   * the toast dialog after focus changes.
-   *
-   * This version uses a single debounced rebump instead of several delayed
-   * rebump attempts, which avoids visible flickering.
+   * RN Modal and many bottom-sheet libraries use separate application windows.
+   * Android stacks a newly attached application window above older windows of
+   * the same type, so a permission-free toast cannot reserve a permanent global
+   * top layer. When the Activity loses focus, replace the covered toast window
+   * with an identical, already-visible one.
    */
   private fun attachWindowFocusListener(activity: Activity) {
     val alreadyAttached =
@@ -221,7 +217,6 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     detachWindowFocusListener()
 
     val decorView = activity.window?.decorView ?: return
-
     val listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
       if (!hasFocus && current != null) {
         scheduleZOrderMaintenance()
@@ -245,7 +240,6 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     if (activity != null && listener != null) {
       try {
         val observer = activity.window?.decorView?.viewTreeObserver
-
         if (observer?.isAlive == true) {
           observer.removeOnWindowFocusChangeListener(listener)
         }
@@ -262,19 +256,16 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     if (current == null || isRebumpingDialog) return
 
     pendingZOrderRunnable?.let { mainHandler.removeCallbacks(it) }
-
     val token = ++zOrderToken
-
     val runnable = Runnable {
       pendingZOrderRunnable = null
-
       if (token == zOrderToken && current != null && !isRebumpingDialog) {
         rebumpToastDialogToFront()
       }
     }
 
     pendingZOrderRunnable = runnable
-    mainHandler.postDelayed(runnable, REBUMP_DEBOUNCE_MS)
+    mainHandler.postDelayed(runnable, REBUMP_DELAY_MS)
   }
 
   private fun cancelPendingZOrderMaintenance() {
@@ -287,8 +278,6 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val config = current ?: return
     val now = SystemClock.uptimeMillis()
 
-    // RN Modal / BottomSheetModal can emit multiple focus/window callbacks while
-    // their dialog window is attaching. Recreating on every callback causes flicker.
     if (now - lastRebumpAtUptimeMs < MIN_REBUMP_INTERVAL_MS) return
 
     val activity = reactContext.currentActivity ?: return
@@ -311,7 +300,6 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
     val oldDialog = dialog
     val oldView = toastView
-
     val viewConfig = config.copy(haptic = false)
     val toast = NativeToastView(activity, viewConfig) { dismiss(config.id) }
     val container = createContainer(activity, toast, config)
@@ -322,13 +310,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       nextDialog.setCanceledOnTouchOutside(false)
       nextDialog.setCancelable(false)
       nextDialog.setContentView(container)
-
       nextDialog.window?.let { configureWindow(it, config, activity) }
       nextDialog.show()
       nextDialog.window?.let { configureWindow(it, config, activity) }
     } catch (error: Throwable) {
-      Log.w(TAG, "Failed to rebump toast dialog", error)
-
+      Log.w(TAG, "Failed to move toast dialog above the new window", error)
       try {
         nextDialog.dismiss()
       } catch (_: Throwable) {
@@ -343,9 +329,10 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     current = config
     dialog = nextDialog
     toastView = toast
-
     attachWindowFocusListener(activity)
 
+    // This is the same toast, not a new presentation. Keep it fully visible and
+    // preserve the original timeout instead of replaying animation or haptics.
     toast.alpha = 1f
     toast.translationX = 0f
     toast.translationY = 0f
@@ -357,12 +344,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       durationOverrideMs = if (config.durationMs > 0L) remainingMs else 0L
     )
 
-    // Show the replacement first, then remove the stale dialog. This avoids the
-    // blank gap that looked like flicker in the previous implementation.
+    // Attach the replacement first. The stale toast is already covered by the
+    // modal, so removing it on the next loop does not create a blank interval.
     mainHandler.post {
       try {
         oldView?.animate()?.cancel()
-        oldView?.removeCallbacks(autoDismiss)
         oldDialog?.dismiss()
       } catch (_: Throwable) {
         // Ignore stale window cleanup failure.
@@ -444,15 +430,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
   companion object {
     private const val TAG = "SuperToast"
-
-    // A single trailing rebump is much smoother than a burst of several recreations.
-    // Practical range: 160ms - 280ms.
-    private const val REBUMP_DEBOUNCE_MS = 220L
-
-    // Prevent multiple focus callbacks from recreating the toast repeatedly.
-    private const val MIN_REBUMP_INTERVAL_MS = 450L
-
-    // Suppress callbacks caused by our own dialog replacement.
-    private const val POST_REBUMP_SUPPRESSION_MS = 260L
+    private const val REBUMP_DELAY_MS = 32L
+    private const val MIN_REBUMP_INTERVAL_MS = 160L
+    private const val POST_REBUMP_SUPPRESSION_MS = 96L
   }
 }
