@@ -17,6 +17,7 @@ import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -33,6 +34,9 @@ class NativeToastView(
   private var downY = 0f
   private var downX = 0f
   private var translationStart = 0f
+  private var isSwiping = false
+  private var isTapCandidate = false
+  private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
   var maxWidthPx: Int = 0
 
   init {
@@ -96,14 +100,6 @@ class NativeToastView(
     }
 
     addView(texts, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-
-    setOnClickListener {
-      if (config.closeOnPress) onDismissRequested()
-    }
-
-    if (config.swipeToDismiss) {
-      setOnTouchListener { _, event -> handleSwipe(event) }
-    }
   }
 
   private fun createIconView(): View? {
@@ -255,35 +251,92 @@ class NativeToastView(
       .start()
   }
 
-  private fun handleSwipe(event: MotionEvent): Boolean {
+  override fun onTouchEvent(event: MotionEvent): Boolean {
+    if (!config.closeOnPress && !config.swipeToDismiss) {
+      return super.onTouchEvent(event)
+    }
+
     when (event.actionMasked) {
       MotionEvent.ACTION_DOWN -> {
+        animate().cancel()
         downY = event.rawY
         downX = event.rawX
         translationStart = translationY
-        parent?.requestDisallowInterceptTouchEvent(true)
+        isSwiping = false
+        isTapCandidate = true
+        isPressed = true
         return true
       }
 
       MotionEvent.ACTION_MOVE -> {
         val dy = event.rawY - downY
         val dx = event.rawX - downX
-        if (abs(dy) > abs(dx)) {
-          val allowed = if (config.position == "bottom") dy.coerceAtLeast(0f) else dy.coerceAtMost(0f)
-          translationY = translationStart + allowed
-          alpha = (1f - (abs(allowed) / dp(96).toFloat())).coerceIn(0.35f, 1f)
+
+        if (abs(dy) > touchSlop || abs(dx) > touchSlop) {
+          isTapCandidate = false
+          isPressed = false
         }
+
+        if (
+          config.swipeToDismiss &&
+          !isSwiping &&
+          abs(dy) > touchSlop &&
+          abs(dy) > abs(dx)
+        ) {
+          isSwiping = true
+          isPressed = false
+          parent?.requestDisallowInterceptTouchEvent(true)
+        }
+
+        if (isSwiping) {
+          translationY = translationStart + dy
+          alpha = (1f - (abs(dy) / dp(96).toFloat())).coerceIn(0.35f, 1f)
+        }
+
         return true
       }
 
-      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+      MotionEvent.ACTION_UP -> {
         val shouldDismiss = abs(translationY - translationStart) > dp(40)
-        if (shouldDismiss) onDismissRequested() else animate().translationY(0f).alpha(1f).setDuration(120).start()
+
+        when {
+          isSwiping && shouldDismiss -> onDismissRequested()
+          isSwiping -> restoreAfterSwipe()
+          isTapCandidate && config.closeOnPress -> performClick()
+        }
+
+        isPressed = false
+        isSwiping = false
+        isTapCandidate = false
+        parent?.requestDisallowInterceptTouchEvent(false)
+        return true
+      }
+
+      MotionEvent.ACTION_CANCEL -> {
+        if (isSwiping) restoreAfterSwipe()
+        isPressed = false
+        isSwiping = false
+        isTapCandidate = false
         parent?.requestDisallowInterceptTouchEvent(false)
         return true
       }
     }
-    return false
+
+    return true
+  }
+
+  override fun performClick(): Boolean {
+    super.performClick()
+    if (config.closeOnPress) onDismissRequested()
+    return true
+  }
+
+  private fun restoreAfterSwipe() {
+    animate()
+      .translationY(translationStart)
+      .alpha(1f)
+      .setDuration(120)
+      .start()
   }
 
   private fun vibrateLight() {
