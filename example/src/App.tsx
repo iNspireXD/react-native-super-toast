@@ -11,7 +11,6 @@ import {
 
 import SuperToast, { SuperToastHost } from 'react-native-super-toast';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
-import { EvilIcons } from '@react-native-vector-icons/evil-icons';
 // or use the static version to embed the font at build time instead of loading it at runtime
 
 export default function App() {
@@ -23,13 +22,6 @@ export default function App() {
     return FontAwesomeFreeSolid.getImageSourceSync('rocket', {
       size: 30,
       color: '#FFFFFF',
-    });
-  }, []);
-
-  const loaderSource = useMemo(() => {
-    return EvilIcons.getImageSourceSync('spinner-3', {
-      size: 24,
-      color: '#ffffff',
     });
   }, []);
 
@@ -103,16 +95,38 @@ export default function App() {
     loadingToastId.current = SuperToast.loading({
       title: 'Uploading',
       message: `Persistent toast triggered from ${source}.`,
-      icon: {
-        type: 'image',
-        source: loaderSource,
-        size: 24,
-        // tintColor: '#FFFFFF', // Optional tintColor for the loading icon
-      },
       duration: 0,
       closeOnPress: false,
       swipeToDismiss: false,
     });
+  }
+
+  async function simulateUpload(shouldFail: boolean) {
+    if (loadingToastId.current) return;
+
+    const toastId = SuperToast.loading({
+      title: 'Uploading file',
+      message: 'Preparing your upload…',
+      duration: 0,
+      closeOnPress: false,
+      swipeToDismiss: false,
+    });
+    loadingToastId.current = toastId;
+
+    await new Promise((resolve) => setTimeout(resolve, 2200));
+
+    SuperToast.update(toastId, {
+      kind: shouldFail ? 'error' : 'success',
+      title: shouldFail ? 'Upload failed' : 'Upload complete',
+      message: shouldFail
+        ? 'The server rejected the simulated upload.'
+        : 'Your simulated file was uploaded successfully.',
+      duration: 2500,
+      closeOnPress: true,
+      swipeToDismiss: true,
+      haptic: true,
+    });
+    loadingToastId.current = null;
   }
 
   function dismissLoadingIcon() {
@@ -172,6 +186,20 @@ export default function App() {
           <View style={styles.gap} />
 
           <Button title="Dismiss loading toast" onPress={dismissLoadingIcon} />
+
+          <View style={styles.gap} />
+
+          <Button
+            title="Simulate successful upload"
+            onPress={() => simulateUpload(false)}
+          />
+
+          <View style={styles.gap} />
+
+          <Button
+            title="Simulate failed upload"
+            onPress={() => simulateUpload(true)}
+          />
         </View>
 
         <View style={styles.card}>

@@ -35,7 +35,9 @@ export type ResolvedToast = Required<
     | 'queue'
   >
 > &
-  Pick<NativeToastOptions, 'title' | 'message' | 'icon'>;
+  Pick<NativeToastOptions, 'title' | 'message' | 'icon'> & {
+    revision: number;
+  };
 
 type ToastSnapshot = {
   current: ResolvedToast | null;
@@ -53,7 +55,7 @@ const palette = {
 
 const initialDefaults: Omit<
   ResolvedToast,
-  'id' | 'title' | 'message' | 'icon'
+  'id' | 'title' | 'message' | 'icon' | 'revision'
 > = {
   kind: 'default',
   duration: 3000,
@@ -110,6 +112,7 @@ function resolveToast(options: NativeToastOptions): ResolvedToast {
     ...merged,
     id: merged.id ?? makeId(),
     kind,
+    revision: 0,
     backgroundColor: merged.backgroundColor ?? colors.background,
     iconColor: merged.iconColor ?? colors.icon,
   };
@@ -132,6 +135,47 @@ export function show(options: NativeToastOptions): string {
   }
 
   return toast.id;
+}
+
+function updateToast(
+  toast: ResolvedToast,
+  options: NativeToastOptions
+): ResolvedToast {
+  const kind = options.kind ?? toast.kind;
+  const kindChanged = kind !== toast.kind;
+  const colors = palette[kind as keyof typeof palette] ?? palette.default;
+
+  return {
+    ...toast,
+    ...options,
+    id: toast.id,
+    kind,
+    revision: toast.revision + 1,
+    icon:
+      options.icon !== undefined
+        ? options.icon
+        : kindChanged
+          ? undefined
+          : toast.icon,
+    backgroundColor:
+      options.backgroundColor ??
+      (kindChanged ? colors.background : toast.backgroundColor),
+    iconColor:
+      options.iconColor ?? (kindChanged ? colors.icon : toast.iconColor),
+  };
+}
+
+export function update(id: string, options: NativeToastOptions): void {
+  if (current?.id === id) {
+    current = updateToast(current, options);
+    dismissing = false;
+    emit();
+    return;
+  }
+
+  toastQueue = toastQueue.map((toast) =>
+    toast.id === id ? updateToast(toast, options) : toast
+  );
 }
 
 export function dismiss(id: string | null): void {

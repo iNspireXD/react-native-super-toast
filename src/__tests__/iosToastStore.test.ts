@@ -6,6 +6,7 @@ import {
   dismissAll,
   getSnapshot,
   show,
+  update,
 } from '../iosToastStore';
 
 it('queues, replaces, and dismisses iOS overlay toasts', () => {
@@ -23,6 +24,21 @@ it('queues, replaces, and dismisses iOS overlay toasts', () => {
 
   completeDismiss(firstId);
   expect(getSnapshot().current?.id).toBe(secondId);
+
+  update(secondId, {
+    kind: 'success',
+    title: 'Updated',
+    duration: 2500,
+  });
+  expect(getSnapshot().current).toMatchObject({
+    id: secondId,
+    kind: 'success',
+    title: 'Updated',
+    duration: 2500,
+    revision: 1,
+    backgroundColor: '#166534',
+    iconColor: '#BBF7D0',
+  });
 
   const replacementId = show({
     message: 'Replacement',

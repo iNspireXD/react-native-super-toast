@@ -53,6 +53,35 @@ const loadingId = SuperToast.loading({
 SuperToast.dismiss(loadingId);
 ```
 
+Update a persistent toast in place to represent an async task:
+
+```tsx
+const id = SuperToast.loading({
+  title: 'Uploading',
+  message: 'Please wait…',
+  duration: 0,
+});
+
+try {
+  await uploadFile();
+  SuperToast.update(id, {
+    kind: 'success',
+    title: 'Upload complete',
+    message: 'Your file is ready.',
+    duration: 2500,
+  });
+} catch {
+  SuperToast.update(id, {
+    kind: 'error',
+    title: 'Upload failed',
+    duration: 3000,
+  });
+}
+```
+
+When no custom icon is supplied, `loading` uses an animated spinner and the
+success, error, warning, and info states use built-in state icons.
+
 The host supports top, center, and bottom positioning, content or screen width,
 queueing, slide/fade/scale animations, image and font icons, press or swipe
 dismissal, haptics, and persistent toasts.

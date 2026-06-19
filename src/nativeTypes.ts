@@ -51,6 +51,7 @@ export type NativeToastOptions = {
 
 export interface Spec extends TurboModule {
   show(options: NativeToastOptions): string;
+  update(id: string, options: NativeToastOptions): void;
   dismiss(id: string | null): void;
   dismissAll(): void;
   configure(defaults: NativeToastOptions): void;

@@ -63,6 +63,23 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     }
   }
 
+  fun update(id: String, options: ReadableMap) {
+    val showing = current
+
+    if (showing?.id == id) {
+      replaceCurrent(ToastConfig.update(options, showing))
+      return
+    }
+
+    val pending = queue.toList()
+    queue.clear()
+    pending.forEach { config ->
+      queue.add(
+        if (config.id == id) ToastConfig.update(options, config) else config
+      )
+    }
+  }
+
   fun dismiss(id: String?) {
     val showing = current
 
@@ -163,6 +180,32 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
         }
       )
     }
+  }
+
+  private fun replaceCurrent(config: ToastConfig) {
+    val activity = reactContext.currentActivity ?: return
+    val activeDialog = dialog ?: return
+    if (activity.isFinishing || activity.isDestroyed) return
+
+    val toast = NativeToastView(activity, config) { dismiss(config.id) }
+    val container = createContainer(activity, toast, config)
+
+    try {
+      activeDialog.setContentView(container)
+      activeDialog.window?.let { configureWindow(it, config, activity) }
+    } catch (error: Throwable) {
+      Log.w(TAG, "Failed to update toast", error)
+      return
+    }
+
+    current = config
+    toastView = toast
+    toast.alpha = 1f
+    toast.translationX = 0f
+    toast.translationY = 0f
+    toast.scaleX = 1f
+    toast.scaleY = 1f
+    scheduleAutoDismiss(config, durationOverrideMs = null)
   }
 
   private fun configureWindow(window: Window, config: ToastConfig, activity: Activity) {

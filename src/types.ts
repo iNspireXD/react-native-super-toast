@@ -82,4 +82,6 @@ export type ToastDefaults = Omit<
   icon?: ToastIcon;
 };
 
+export type ToastUpdate = Omit<ToastOptions, 'id' | 'queue'>;
+
 export type ShowToastInput = string | ToastOptions;

@@ -7,6 +7,7 @@ import {
 } from 'react';
 import {
   Animated,
+  Easing,
   Image,
   PanResponder,
   Pressable,
@@ -32,9 +33,68 @@ type ToastCardProps = {
   dismissing: boolean;
 };
 
+function LoadingSpinner({ color }: { color: string }) {
+  const rotation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 850,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [rotation]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.spinner,
+        {
+          borderColor: color,
+          transform: [
+            {
+              rotate: rotation.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0deg', '360deg'],
+              }),
+            },
+          ],
+        },
+        styles.spinnerCutout,
+      ]}
+    />
+  );
+}
+
 function ToastIcon({ toast }: { toast: ResolvedToast }) {
   const icon = toast.icon;
-  if (!icon) return null;
+  if (!icon) {
+    if (toast.kind === 'loading') {
+      return <LoadingSpinner color={toast.iconColor} />;
+    }
+
+    const stateGlyph =
+      toast.kind === 'success'
+        ? '✓'
+        : toast.kind === 'error'
+          ? '!'
+          : toast.kind === 'warning'
+            ? '!'
+            : toast.kind === 'info'
+              ? 'i'
+              : null;
+
+    return stateGlyph ? (
+      <Text style={[styles.stateIcon, { color: toast.iconColor }]}>
+        {stateGlyph}
+      </Text>
+    ) : null;
+  }
 
   if (icon.type === 'image' && icon.uri) {
     const size = icon.size ?? 24;
@@ -76,6 +136,7 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
+  const initialToast = useRef(toast).current;
 
   const restorePosition = useCallback(() => {
     Animated.parallel([
@@ -127,17 +188,17 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
   );
 
   useEffect(() => {
-    const offset = toast.position === 'bottom' ? 12 : -12;
+    const offset = initialToast.position === 'bottom' ? 12 : -12;
 
-    opacity.setValue(toast.animation === 'none' ? 1 : 0);
-    translateY.setValue(toast.animation === 'slide' ? offset : 0);
-    scale.setValue(toast.animation === 'scale' ? 0.96 : 1);
+    opacity.setValue(initialToast.animation === 'none' ? 1 : 0);
+    translateY.setValue(initialToast.animation === 'slide' ? offset : 0);
+    scale.setValue(initialToast.animation === 'scale' ? 0.96 : 1);
 
-    if (toast.animation !== 'none') {
+    if (initialToast.animation !== 'none') {
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
-          duration: toast.animation === 'fade' ? 140 : 180,
+          duration: initialToast.animation === 'fade' ? 140 : 180,
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
@@ -152,9 +213,11 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
         }),
       ]).start();
     }
+  }, [initialToast, opacity, scale, translateY]);
 
+  useEffect(() => {
     if (toast.haptic) triggerHaptic();
-  }, [opacity, scale, toast, translateY]);
+  }, [toast.haptic, toast.kind, toast.revision]);
 
   useEffect(() => {
     if (!dismissing) return;
@@ -195,7 +258,7 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
 
     const timeout = setTimeout(() => dismiss(toast.id), toast.duration);
     return () => clearTimeout(timeout);
-  }, [toast.duration, toast.id]);
+  }, [toast.duration, toast.id, toast.revision]);
 
   const label = [toast.title, toast.message].filter(Boolean).join('. ');
 
@@ -334,6 +397,23 @@ const styles = StyleSheet.create({
   imageIcon: {
     flexGrow: 0,
     flexShrink: 0,
+  },
+  spinner: {
+    width: 22,
+    height: 22,
+    borderWidth: 2.5,
+    borderRadius: 11,
+  },
+  spinnerCutout: {
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+  },
+  stateIcon: {
+    width: 22,
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   texts: {
     flexShrink: 1,

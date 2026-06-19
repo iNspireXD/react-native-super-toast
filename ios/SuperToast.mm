@@ -579,6 +579,12 @@ RCT_EXPORT_MODULE(SuperToast)
   return toastId;
 }
 
+- (void)update:(NSString *)toastId options:(NSDictionary *)options {
+  // iOS toast updates are rendered by SuperToastHost through FullWindowOverlay.
+  (void)toastId;
+  (void)options;
+}
+
 - (void)dismiss:(NSString *)toastId {
   dispatch_async(dispatch_get_main_queue(), ^{ [STToastManager.shared dismiss:toastId]; });
 }

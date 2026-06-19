@@ -16,6 +16,10 @@ class SuperToastModule(private val reactContext: ReactApplicationContext) : Nati
     return config.id
   }
 
+  override fun update(id: String, options: ReadableMap) {
+    UiThreadUtil.runOnUiThread { host.update(id, options) }
+  }
+
   override fun dismiss(id: String?) {
     UiThreadUtil.runOnUiThread { host.dismiss(id) }
   }

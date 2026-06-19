@@ -11,6 +11,7 @@ import type {
   ToastIcon,
   ToastKind,
   ToastOptions,
+  ToastUpdate,
 } from './types';
 export { SuperToastHost };
 
@@ -25,6 +26,7 @@ export type {
   ToastOptions,
   ToastPosition,
   ToastTextIcon,
+  ToastUpdate,
   ToastWidthMode,
 } from './types';
 
@@ -104,11 +106,11 @@ function normalize(
 ): NativeToastOptions {
   const base = typeof input === 'string' ? { message: input } : input;
   const merged: ToastOptions = { ...base, ...extra };
+  const { icon, ...options } = merged;
 
-  return {
-    ...merged,
-    icon: normalizeIcon(merged.icon),
-  };
+  if (icon === undefined) return options;
+
+  return { ...options, icon: normalizeIcon(icon) };
 }
 
 function withKind(kind: ToastKind) {
@@ -126,6 +128,11 @@ export const SuperToast = {
   warning: withKind('warning'),
   info: withKind('info'),
   loading: withKind('loading'),
+
+  update(id: string, options: ToastUpdate): void {
+    if (!id || !isObject(options)) return;
+    NativeSuperToast.update(id, normalize(options));
+  },
 
   dismiss(id?: string): void {
     NativeSuperToast.dismiss(id ?? null);

@@ -22,6 +22,7 @@ import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import java.net.HttpURLConnection
 import java.net.URL
@@ -104,7 +105,7 @@ class NativeToastView(
   }
 
   private fun createIconView(): View? {
-    val icon = config.icon ?: return null
+    val icon = config.icon ?: return createStateIconView()
     val defaultSize = dp(icon.sizeDp ?: 22)
 
     return when (icon.type) {
@@ -147,6 +148,38 @@ class NativeToastView(
           layoutParams = LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
       }
+    }
+  }
+
+  private fun createStateIconView(): View? {
+    if (config.kind == "loading") {
+      return ProgressBar(
+        context,
+        null,
+        android.R.attr.progressBarStyleSmall
+      ).apply {
+        isIndeterminate = true
+        indeterminateTintList = ColorStateList.valueOf(config.iconColor)
+        layoutParams = LayoutParams(dp(22), dp(22))
+      }
+    }
+
+    val glyph = when (config.kind) {
+      "success" -> "✓"
+      "error" -> "!"
+      "warning" -> "!"
+      "info" -> "i"
+      else -> return null
+    }
+
+    return TextView(context).apply {
+      text = glyph
+      textSize = 20f
+      setTextColor(config.iconColor)
+      gravity = Gravity.CENTER
+      includeFontPadding = false
+      typeface = Typeface.DEFAULT_BOLD
+      layoutParams = LayoutParams(dp(22), dp(22))
     }
   }
 

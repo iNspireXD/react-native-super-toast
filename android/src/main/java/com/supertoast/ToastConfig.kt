@@ -94,6 +94,52 @@ data class ToastConfig(
       )
     }
 
+    fun update(map: ReadableMap, current: ToastConfig): ToastConfig {
+      val kind = map.string("kind") ?: current.kind
+      val kindChanged = kind != current.kind
+      val palette = paletteFor(kind)
+
+      return current.copy(
+        id = current.id,
+        kind = kind,
+        title = if (map.hasKey("title")) map.string("title") else current.title,
+        message = if (map.hasKey("message")) map.string("message") else current.message,
+        icon = when {
+          map.hasKey("icon") -> map.icon("icon")
+          kindChanged -> null
+          else -> current.icon
+        },
+        durationMs = map.long("duration") ?: current.durationMs,
+        position = map.string("position") ?: current.position,
+        widthMode = map.string("widthMode") ?: current.widthMode,
+        animation = map.string("animation") ?: current.animation,
+        topOffsetDp = map.int("topOffset") ?: current.topOffsetDp,
+        bottomOffsetDp = map.int("bottomOffset") ?: current.bottomOffsetDp,
+        maxWidthDp = map.int("maxWidth") ?: current.maxWidthDp,
+        horizontalMarginDp = map.int("horizontalMargin") ?: current.horizontalMarginDp,
+        backgroundColor = map.color("backgroundColor")
+          ?: if (kindChanged) palette.first else current.backgroundColor,
+        titleColor = map.color("titleColor") ?: current.titleColor,
+        messageColor = map.color("messageColor") ?: current.messageColor,
+        iconColor = map.color("iconColor")
+          ?: if (kindChanged) palette.second else current.iconColor,
+        borderColor = map.color("borderColor") ?: current.borderColor,
+        borderWidthDp = map.int("borderWidth") ?: current.borderWidthDp,
+        borderRadiusDp = map.int("borderRadius") ?: current.borderRadiusDp,
+        paddingHorizontalDp = map.int("paddingHorizontal") ?: current.paddingHorizontalDp,
+        paddingVerticalDp = map.int("paddingVertical") ?: current.paddingVerticalDp,
+        gapDp = map.int("gap") ?: current.gapDp,
+        titleSizeSp = map.float("titleSize") ?: current.titleSizeSp,
+        messageSizeSp = map.float("messageSize") ?: current.messageSizeSp,
+        elevationDp = map.int("elevation") ?: current.elevationDp,
+        shadowOpacity = map.float("shadowOpacity") ?: current.shadowOpacity,
+        swipeToDismiss = map.bool("swipeToDismiss") ?: current.swipeToDismiss,
+        closeOnPress = map.bool("closeOnPress") ?: current.closeOnPress,
+        haptic = map.bool("haptic") ?: current.haptic,
+        queue = current.queue,
+      )
+    }
+
     private fun paletteFor(kind: String): Pair<Int, Int> = when (kind) {
       "success" -> Color.rgb(22, 101, 52) to Color.rgb(187, 247, 208)
       "error" -> Color.rgb(127, 29, 29) to Color.rgb(254, 202, 202)
