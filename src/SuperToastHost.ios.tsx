@@ -33,6 +33,12 @@ type ToastCardProps = {
   dismissing: boolean;
 };
 
+type ToastViewHandle = {
+  measureInWindow(
+    callback: (x: number, y: number, width: number, height: number) => void
+  ): void;
+};
+
 function LoadingSpinner({ color }: { color: string }) {
   const rotation = useRef(new Animated.Value(0)).current;
 
@@ -137,6 +143,46 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
   const translateY = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const initialToast = useRef(toast).current;
+  const toastRef = useRef<ToastViewHandle>(null);
+  const entranceStarted = useRef(false);
+  const slideOffset = useRef(initialToast.position === 'bottom' ? 12 : -12);
+
+  const runEntranceAnimation = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, translateY]);
+
+  const startSlideEntrance = useCallback(() => {
+    if (
+      entranceStarted.current ||
+      initialToast.animation !== 'slide' ||
+      initialToast.position !== 'top'
+    ) {
+      return;
+    }
+
+    toastRef.current?.measureInWindow((_x, y, _width, height) => {
+      if (entranceStarted.current) return;
+
+      entranceStarted.current = true;
+      slideOffset.current = -(y + height + 8);
+      translateY.setValue(slideOffset.current);
+
+      requestAnimationFrame(runEntranceAnimation);
+    });
+  }, [initialToast, runEntranceAnimation, translateY]);
 
   const restorePosition = useCallback(() => {
     Animated.parallel([
@@ -194,7 +240,11 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
     translateY.setValue(initialToast.animation === 'slide' ? offset : 0);
     scale.setValue(initialToast.animation === 'scale' ? 0.96 : 1);
 
-    if (initialToast.animation !== 'none') {
+    if (
+      initialToast.animation !== 'none' &&
+      !(initialToast.animation === 'slide' && initialToast.position === 'top')
+    ) {
+      entranceStarted.current = true;
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
@@ -236,11 +286,14 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
       Animated.timing(translateY, {
         toValue:
           toast.animation === 'slide'
-            ? toast.position === 'bottom'
-              ? 12
-              : -12
+            ? toast.position === 'top'
+              ? slideOffset.current
+              : toast.position === 'bottom'
+                ? 12
+                : -12
             : 0,
-        duration: 140,
+        duration: toast.animation === 'slide' ? 220 : 140,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start(() => completeDismiss(toast.id));
@@ -264,6 +317,10 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
 
   return (
     <Animated.View
+      ref={(node) => {
+        toastRef.current = node;
+      }}
+      onLayout={startSlideEntrance}
       {...panResponder.panHandlers}
       style={[
         styles.toastShell,

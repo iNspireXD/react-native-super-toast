@@ -417,14 +417,21 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
   if ([self.config.animation isEqualToString:@"none"]) return;
   self.alpha = 0;
   if ([self.config.animation isEqualToString:@"scale"]) self.transform = CGAffineTransformMakeScale(0.96, 0.96);
-  else if ([self.config.animation isEqualToString:@"slide"]) self.transform = CGAffineTransformMakeTranslation(0, [self.config.position isEqualToString:@"bottom"] ? 12 : -12);
-  [UIView animateWithDuration:0.18 animations:^{ self.alpha = 1; self.transform = CGAffineTransformIdentity; }];
+  else if ([self.config.animation isEqualToString:@"slide"]) {
+    CGFloat y = [self.config.position isEqualToString:@"top"] ? -(CGRectGetMaxY(self.frame) + 8) : ([self.config.position isEqualToString:@"bottom"] ? 12 : -12);
+    self.transform = CGAffineTransformMakeTranslation(0, y);
+  }
+  [UIView animateWithDuration:0.30 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+    self.alpha = 1;
+    self.transform = CGAffineTransformIdentity;
+  } completion:nil];
 }
 
 - (void)animateOut:(dispatch_block_t)completion {
   if ([self.config.animation isEqualToString:@"none"]) { if (completion) completion(); return; }
-  CGFloat y = [self.config.position isEqualToString:@"bottom"] ? 12 : -12;
-  [UIView animateWithDuration:0.14 animations:^{
+  CGFloat y = [self.config.position isEqualToString:@"top"] ? -(CGRectGetMaxY(self.frame) + 8) : ([self.config.position isEqualToString:@"bottom"] ? 12 : -12);
+  NSTimeInterval duration = [self.config.animation isEqualToString:@"slide"] ? 0.22 : 0.14;
+  [UIView animateWithDuration:duration delay:0 options:UIViewAnimationOptionCurveEaseIn animations:^{
     self.alpha = 0;
     if ([self.config.animation isEqualToString:@"slide"]) self.transform = CGAffineTransformMakeTranslation(0, y);
   } completion:^(__unused BOOL finished) { if (completion) completion(); }];

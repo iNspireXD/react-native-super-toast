@@ -20,6 +20,8 @@ import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityEvent
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -287,8 +289,19 @@ class NativeToastView(
       }
 
       else -> {
-        translationY = if (config.position == "bottom") dp(12).toFloat() else -dp(12).toFloat()
-        animate().alpha(1f).translationY(0f).setDuration(180).start()
+        post {
+          translationY = when (config.position) {
+            "top" -> 0f
+            "bottom" -> dp(12).toFloat()
+            else -> -dp(12).toFloat()
+          }
+          animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(300)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+        }
       }
     }
   }
@@ -300,13 +313,15 @@ class NativeToastView(
     }
     val targetY = when {
       config.animation == "slide" && config.position == "bottom" -> dp(12).toFloat()
+      config.animation == "slide" && config.position == "top" -> 0f
       config.animation == "slide" -> -dp(12).toFloat()
       else -> translationY
     }
     animate()
       .alpha(0f)
       .translationY(targetY)
-      .setDuration(140)
+      .setDuration(if (config.animation == "slide") 220 else 140)
+      .setInterpolator(AccelerateInterpolator())
       .setListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator) {
           animate().setListener(null)

@@ -1,5 +1,8 @@
 package com.supertoast
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.Dialog
 import android.graphics.Color
@@ -13,6 +16,8 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.ReactApplicationContext
@@ -30,6 +35,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   private var dialog: Dialog? = null
   private var current: ToastConfig? = null
   private var toastView: NativeToastView? = null
+  private var windowSlideAnimator: ValueAnimator? = null
 
   private var autoDismissAtUptimeMs: Long = 0L
   private val autoDismiss = Runnable { dismiss(current?.id) }
@@ -107,6 +113,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val toast = NativeToastView(activity, viewConfig) { dismiss(config.id) }
     val container = createContainer(activity, toast, config)
     val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
+    val animateTopSlide =
+      animate && config.animation == "slide" && config.position == "top"
 
     try {
       nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -114,9 +122,13 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       nextDialog.setCancelable(false)
       nextDialog.setContentView(container)
 
-      nextDialog.window?.let { configureWindow(it, config, activity) }
+      nextDialog.window?.let {
+        configureWindow(it, config, activity, hideTopSlide = animateTopSlide)
+      }
       nextDialog.show()
-      nextDialog.window?.let { configureWindow(it, config, activity) }
+      nextDialog.window?.let {
+        configureWindow(it, config, activity, hideTopSlide = animateTopSlide)
+      }
     } catch (error: Throwable) {
       Log.w(TAG, "Failed to show toast dialog", error)
 
@@ -135,7 +147,14 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
     attachWindowFocusListener(activity)
 
-    if (animate) {
+    if (animateTopSlide) {
+      toast.alpha = 1f
+      toast.post {
+        if (dialog === nextDialog && current?.id == config.id) {
+          animateTopWindowIn(nextDialog.window, activity, config, toast.height)
+        }
+      }
+    } else if (animate) {
       toast.animateIn()
     } else {
       toast.alpha = 1f
@@ -191,6 +210,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val container = createContainer(activity, toast, config)
 
     try {
+      cancelWindowSlideAnimation()
       activeDialog.setContentView(container)
       activeDialog.window?.let { configureWindow(it, config, activity) }
     } catch (error: Throwable) {
@@ -208,11 +228,17 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     scheduleAutoDismiss(config, durationOverrideMs = null)
   }
 
-  private fun configureWindow(window: Window, config: ToastConfig, activity: Activity) {
+  private fun configureWindow(
+    window: Window,
+    config: ToastConfig,
+    activity: Activity,
+    hideTopSlide: Boolean = false,
+  ) {
     window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
     window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
     window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+    window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
     window.setDimAmount(0f)
     window.decorView.setPadding(0, 0, 0, 0)
 
@@ -235,13 +261,90 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     attrs.y = when (config.position) {
       "bottom" -> dp(activity, config.bottomOffsetDp)
       "center" -> 0
-      else -> dp(activity, config.topOffsetDp)
+      else ->
+        if (hideTopSlide) {
+          -activity.resources.displayMetrics.heightPixels
+        } else {
+          dp(activity, config.topOffsetDp)
+        }
     }
 
     attrs.windowAnimations = 0
 
     window.attributes = attrs
     window.setLayout(attrs.width, attrs.height)
+  }
+
+  private fun animateTopWindowIn(
+    window: Window?,
+    activity: Activity,
+    config: ToastConfig,
+    toastHeight: Int,
+  ) {
+    if (window == null) return
+
+    cancelWindowSlideAnimation()
+
+    val startY = -(statusBarHeight(activity) + toastHeight + dp(activity, 8))
+    val endY = dp(activity, config.topOffsetDp)
+    setWindowY(window, startY)
+
+    val animator = ValueAnimator.ofInt(startY, endY).apply {
+      duration = 300L
+      interpolator = DecelerateInterpolator()
+      addUpdateListener { setWindowY(window, it.animatedValue as Int) }
+      addListener(object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator) {
+          if (windowSlideAnimator === animation) {
+            windowSlideAnimator = null
+            setWindowY(window, endY)
+          }
+        }
+      })
+    }
+
+    windowSlideAnimator = animator
+    animator.start()
+  }
+
+  private fun animateTopWindowOut(
+    window: Window,
+    activity: Activity,
+    toastHeight: Int,
+    after: () -> Unit,
+  ) {
+    cancelWindowSlideAnimation()
+
+    val startY = window.attributes.y
+    val endY = -(statusBarHeight(activity) + toastHeight + dp(activity, 8))
+    val animator = ValueAnimator.ofInt(startY, endY).apply {
+      duration = 220L
+      interpolator = AccelerateInterpolator()
+      addUpdateListener { setWindowY(window, it.animatedValue as Int) }
+      addListener(object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator) {
+          if (windowSlideAnimator === animation) {
+            windowSlideAnimator = null
+            after()
+          }
+        }
+      })
+    }
+
+    windowSlideAnimator = animator
+    animator.start()
+  }
+
+  private fun setWindowY(window: Window, y: Int) {
+    val attrs = window.attributes
+    attrs.y = y
+    window.attributes = attrs
+  }
+
+  private fun cancelWindowSlideAnimation() {
+    val animator = windowSlideAnimator ?: return
+    windowSlideAnimator = null
+    animator.cancel()
   }
 
   /**
@@ -418,6 +521,9 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
   private fun dismissCurrent(animated: Boolean, showNext: Boolean) {
     val view = toastView
+    val showing = current
+    val activeWindow = dialog?.window
+    val activity = reactContext.currentActivity
 
     mainHandler.removeCallbacks(autoDismiss)
     autoDismissAtUptimeMs = 0L
@@ -440,9 +546,20 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       }
     }
 
-    if (animated && view != null) {
+    if (
+      animated &&
+      view != null &&
+      showing != null &&
+      showing.animation == "slide" &&
+      showing.position == "top" &&
+      activeWindow != null &&
+      activity != null
+    ) {
+      animateTopWindowOut(activeWindow, activity, view.height, finish)
+    } else if (animated && view != null) {
       view.animateOut(finish)
     } else {
+      cancelWindowSlideAnimation()
       finish()
     }
   }
@@ -469,6 +586,12 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
   private fun dp(activity: Activity, value: Int): Int {
     return (value * activity.resources.displayMetrics.density).toInt()
+  }
+
+  private fun statusBarHeight(activity: Activity): Int {
+    val resources = activity.resources
+    val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+    return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
   }
 
   companion object {
