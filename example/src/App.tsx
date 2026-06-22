@@ -11,17 +11,33 @@ import {
 } from 'react-native';
 
 import SuperToast, { SuperToastHost } from 'react-native-super-toast';
+import type { ToastKind } from 'react-native-super-toast';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 // or use the static version to embed the font at build time instead of loading it at runtime
+
+function getBackgroundColor(type: ToastKind) {
+  switch (type) {
+    case 'success':
+      return '#047857';
+    case 'error':
+      return '#B91C1C';
+    case 'warning':
+      return '#F59E0B';
+    case 'info':
+      return '#1D4ED8';
+    default:
+      return '#171717';
+  }
+}
 
 export default function App() {
   const [pageSheetModalVisible, setPageSheetModalVisible] = useState(false);
   const [transparentModalVisible, setTransparentModalVisible] = useState(false);
   const loadingToastId = useRef<string | null>(null);
 
-  const rocketSource = useMemo(() => {
-    return FontAwesomeFreeSolid.getImageSourceSync('rocket', {
-      size: 30,
+  const bellIconSource = useMemo(() => {
+    return FontAwesomeFreeSolid.getImageSourceSync('bell', {
+      size: 24,
       color: '#FFFFFF',
     });
   }, []);
@@ -56,38 +72,39 @@ export default function App() {
 
   function showTextIcon(source: string) {
     SuperToast.success({
-      title: 'Text icon',
-      message: `Triggered from ${source}.`,
+      message: `Synced data successfully from ${source}.`,
       icon: '✓',
+      backgroundColor: getBackgroundColor('success'),
     });
   }
 
-  function showPngIcon(source: string) {
+  function showPngIcon() {
     SuperToast.show({
-      title: 'PNG icon',
-      message: `PNG asset triggered from ${source}.`,
+      title: 'Item added to cart',
+      message: `You added "Super Toast T-Shirt" to your cart.`,
       icon: {
         type: 'image',
-        source: require('../assets/logo.png'),
+        source: require('../assets/shopping-cart.png'),
         size: 24,
         cornerRadius: 4,
       },
-      backgroundColor: '#064E3B',
+      backgroundColor: getBackgroundColor('success'),
       titleColor: '#FFFFFF',
-      messageColor: '#D1FAE5',
+      messageColor: '#FFFFFF',
     });
   }
 
   function showFontIcon(source: string) {
     SuperToast.show({
-      title: 'Font/vector icon',
-      message: `Native icon font glyph triggered from ${source}.`,
+      title: 'New Message',
+      message: `Aswin sent you a message from ${source}.`,
       icon: {
         type: 'image',
-        source: rocketSource,
-        size: 30,
+        source: bellIconSource,
+        size: 24,
+        cornerRadius: 4,
       },
-      backgroundColor: '#1E293B',
+      backgroundColor: getBackgroundColor('default'),
       titleColor: '#FFFFFF',
       messageColor: '#CBD5E1',
     });
@@ -102,6 +119,7 @@ export default function App() {
       title: 'Uploading',
       message: `Persistent toast triggered from ${source}.`,
       duration: 0,
+      backgroundColor: getBackgroundColor('loading'),
       closeOnPress: false,
       swipeToDismiss: false,
     });
@@ -114,6 +132,7 @@ export default function App() {
       title: 'Uploading file',
       message: 'Preparing your upload…',
       duration: 0,
+      backgroundColor: getBackgroundColor('loading'),
       closeOnPress: false,
       swipeToDismiss: false,
     });
@@ -123,6 +142,7 @@ export default function App() {
 
     SuperToast.update(toastId, {
       kind: shouldFail ? 'error' : 'success',
+      backgroundColor: getBackgroundColor(shouldFail ? 'error' : 'success'),
       title: shouldFail ? 'Upload failed' : 'Upload complete',
       message: shouldFail
         ? 'The server rejected the simulated upload.'
@@ -147,10 +167,12 @@ export default function App() {
       title: 'Done',
       message: 'Loading toast dismissed.',
       icon: '✓',
+      backgroundColor: getBackgroundColor('success'),
     });
   }
 
   function showStackDemo() {
+    const variants: ToastKind[] = ['success', 'info', 'warning'];
     const messages = [
       'Your changes were saved.',
       'A new message just arrived.',
@@ -160,8 +182,10 @@ export default function App() {
     messages.forEach((message, index) => {
       setTimeout(() => {
         SuperToast.show({
+          kind: variants[index],
           title: `Stacked toast ${index + 1}`,
           message,
+          backgroundColor: getBackgroundColor(variants[index] ?? 'default'),
           duration: 3200 + index * 500,
           stack: true,
         });
@@ -189,10 +213,7 @@ export default function App() {
 
           <View style={styles.gap} />
 
-          <Button
-            title="Show PNG icon toast"
-            onPress={() => showPngIcon('main screen')}
-          />
+          <Button title="Show PNG icon toast" onPress={() => showPngIcon()} />
 
           <View style={styles.gap} />
 
@@ -280,7 +301,7 @@ export default function App() {
 
               <Button
                 title="PNG icon above modal"
-                onPress={() => showPngIcon('pageSheet modal')}
+                onPress={() => showPngIcon()}
               />
 
               <View style={styles.gap} />
@@ -339,7 +360,7 @@ export default function App() {
 
             <Button
               title="PNG icon above transparent modal"
-              onPress={() => showPngIcon('transparent modal')}
+              onPress={() => showPngIcon()}
             />
 
             <View style={styles.gap} />
