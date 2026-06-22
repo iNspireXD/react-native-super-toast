@@ -49,5 +49,47 @@ it('queues, replaces, and dismisses iOS overlay toasts', () => {
 
   dismissAll();
   completeDismiss(replacementId);
-  expect(getSnapshot()).toEqual({ current: null, dismissing: false });
+  expect(getSnapshot()).toEqual({
+    current: null,
+    dismissing: false,
+    stacked: [],
+    stackedDismissingIds: [],
+  });
+});
+
+it('shows and independently dismisses stacked iOS overlay toasts', () => {
+  const firstId = show({
+    message: 'First stack',
+    duration: 0,
+    stack: true,
+  });
+  const secondId = show({
+    message: 'Second stack',
+    duration: 0,
+    stack: true,
+    stackLimit: 2,
+  });
+  const thirdId = show({
+    message: 'Third stack',
+    duration: 0,
+    stack: true,
+    stackLimit: 2,
+  });
+
+  expect(getSnapshot().stacked.map((toast) => toast.id)).toEqual([
+    secondId,
+    thirdId,
+  ]);
+
+  dismiss(secondId);
+  expect(getSnapshot().stackedDismissingIds).toEqual([secondId]);
+
+  completeDismiss(secondId);
+  expect(getSnapshot().stacked.map((toast) => toast.id)).toEqual([thirdId]);
+
+  dismissAll();
+  expect(getSnapshot().stackedDismissingIds).toEqual([thirdId]);
+  completeDismiss(thirdId);
+
+  expect(firstId).not.toBe(secondId);
 });

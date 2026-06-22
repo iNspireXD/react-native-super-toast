@@ -31,6 +31,8 @@ import type { ResolvedToast } from './iosToastStore';
 type ToastCardProps = {
   toast: ResolvedToast;
   dismissing: boolean;
+  stackDepth?: number;
+  stacked?: boolean;
 };
 
 type ToastViewHandle = {
@@ -138,10 +140,24 @@ function ToastIcon({ toast }: { toast: ResolvedToast }) {
   );
 }
 
-function ToastCard({ toast, dismissing }: ToastCardProps) {
+function ToastCard({
+  toast,
+  dismissing,
+  stackDepth = 0,
+  stacked = false,
+}: ToastCardProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
+  const stackTranslateY = useRef(
+    new Animated.Value(stackDepth * toast.stackOffset)
+  ).current;
+  const stackScale = useRef(
+    new Animated.Value(Math.max(0.9, 1 - stackDepth * 0.035))
+  ).current;
+  const stackOpacity = useRef(
+    new Animated.Value(Math.max(0.55, 1 - stackDepth * 0.2))
+  ).current;
   const initialToast = useRef(toast).current;
   const toastRef = useRef<ToastViewHandle>(null);
   const entranceStarted = useRef(false);
@@ -270,6 +286,36 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
   }, [toast.haptic, toast.kind, toast.revision]);
 
   useEffect(() => {
+    Animated.parallel([
+      Animated.spring(stackTranslateY, {
+        toValue: stackDepth * toast.stackOffset,
+        damping: 20,
+        stiffness: 220,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(stackScale, {
+        toValue: Math.max(0.9, 1 - stackDepth * 0.035),
+        damping: 20,
+        stiffness: 220,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(stackOpacity, {
+        toValue: Math.max(0.55, 1 - stackDepth * 0.2),
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [
+    stackDepth,
+    stackOpacity,
+    stackScale,
+    stackTranslateY,
+    toast.stackOffset,
+  ]);
+
+  useEffect(() => {
     if (!dismissing) return;
 
     if (toast.animation === 'none') {
@@ -284,15 +330,16 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
-        toValue:
-          toast.animation === 'slide'
+        toValue: stacked
+          ? 14
+          : toast.animation === 'slide'
             ? toast.position === 'top'
               ? slideOffset.current
               : toast.position === 'bottom'
                 ? 12
                 : -12
             : 0,
-        duration: toast.animation === 'slide' ? 220 : 140,
+        duration: stacked ? 180 : toast.animation === 'slide' ? 220 : 140,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -304,6 +351,7 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
     toast.id,
     toast.position,
     translateY,
+    stacked,
   ]);
 
   useEffect(() => {
@@ -322,15 +370,24 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
       }}
       onLayout={startSlideEntrance}
       {...panResponder.panHandlers}
+      pointerEvents={stacked && stackDepth > 0 ? 'none' : 'auto'}
       style={[
         styles.toastShell,
+        stacked && styles.stackedToast,
+        stacked && toast.widthMode === 'screen' && styles.stackedScreenWidth,
         toast.widthMode === 'screen'
           ? styles.screenWidth
           : { maxWidth: toast.maxWidth },
         {
-          opacity,
-          transform: [{ translateY }, { scale }],
+          opacity: Animated.multiply(opacity, stackOpacity),
+          transform: [
+            { translateY: stackTranslateY },
+            { translateY },
+            { scale: stackScale },
+            { scale },
+          ],
           shadowOpacity: toast.shadowOpacity,
+          zIndex: 100 - stackDepth,
         },
       ]}
     >
@@ -389,29 +446,28 @@ function ToastCard({ toast, dismissing }: ToastCardProps) {
 }
 
 export default function SuperToastHost() {
-  const { current, dismissing } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getSnapshot
-  );
+  const { current, dismissing, stacked, stackedDismissingIds } =
+    useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const frontToast = current ?? stacked.at(-1) ?? null;
 
   const positionStyle = useMemo<ViewStyle>(() => {
-    if (!current) return {};
+    if (!frontToast) return {};
 
     return {
       justifyContent:
-        current.position === 'bottom'
+        frontToast.position === 'bottom'
           ? 'flex-end'
-          : current.position === 'center'
+          : frontToast.position === 'center'
             ? 'center'
             : 'flex-start',
-      paddingHorizontal: current.horizontalMargin,
-      paddingTop: current.position === 'top' ? current.topOffset : 0,
-      paddingBottom: current.position === 'bottom' ? current.bottomOffset : 0,
+      paddingHorizontal: frontToast.horizontalMargin,
+      paddingTop: frontToast.position === 'top' ? frontToast.topOffset : 0,
+      paddingBottom:
+        frontToast.position === 'bottom' ? frontToast.bottomOffset : 0,
     };
-  }, [current]);
+  }, [frontToast]);
 
-  if (!current) return null;
+  if (!frontToast) return null;
 
   return (
     <FullWindowOverlay unstable_accessibilityContainerViewIsModal={false}>
@@ -420,7 +476,25 @@ export default function SuperToastHost() {
           pointerEvents="box-none"
           style={[styles.positionLayer, positionStyle]}
         >
-          <ToastCard key={current.id} toast={current} dismissing={dismissing} />
+          {stacked.length > 0 ? (
+            <View pointerEvents="box-none" style={styles.stackStage}>
+              {stacked.map((toast, index) => (
+                <ToastCard
+                  key={toast.id}
+                  toast={toast}
+                  dismissing={stackedDismissingIds.includes(toast.id)}
+                  stackDepth={stacked.length - index - 1}
+                  stacked
+                />
+              ))}
+            </View>
+          ) : current ? (
+            <ToastCard
+              key={current.id}
+              toast={current}
+              dismissing={dismissing}
+            />
+          ) : null}
         </View>
       </SafeAreaView>
     </FullWindowOverlay>
@@ -440,6 +514,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 14,
+  },
+  stackedToast: {
+    position: 'absolute',
+    top: 0,
+  },
+  stackedScreenWidth: {
+    width: '100%',
+  },
+  stackStage: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
   },
   screenWidth: {
     alignSelf: 'stretch',

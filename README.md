@@ -86,6 +86,27 @@ The host supports top, center, and bottom positioning, content or screen width,
 queueing, slide/fade/scale animations, image and font icons, press or swipe
 dismissal, haptics, and persistent toasts.
 
+### Stacked toasts
+
+Enable `stack` for overlapping top-positioned toasts. New toasts appear in
+front, while older toasts remain visible underneath and keep their own
+durations.
+
+```tsx
+SuperToast.configure({
+  position: 'top',
+  stack: true,
+  stackLimit: 3,
+  stackOffset: 10,
+});
+
+SuperToast.show({ title: 'Saved', message: 'Your changes were saved.' });
+SuperToast.show({ title: 'New message', message: 'Sarah sent a photo.' });
+```
+
+`stackLimit` controls the visible layer count and `stackOffset` controls how
+many points each older card peeks out below the newest card.
+
 ## Contributing
 
 - [Development workflow](CONTRIBUTING.md#development-workflow)

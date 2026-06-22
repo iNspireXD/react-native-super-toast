@@ -26,6 +26,23 @@ import java.lang.ref.WeakReference
 import java.util.ArrayDeque
 
 class ToastDialogHost(private val reactContext: ReactApplicationContext) : LifecycleEventListener {
+  private data class StackedEntry(
+    var config: ToastConfig,
+    var dialog: Dialog,
+    var view: NativeToastView,
+    var dismissRunnable: Runnable? = null,
+    var dismissAtUptimeMs: Long = 0L,
+  )
+
+  private data class StackedReplacement(
+    val entry: StackedEntry,
+    val oldDialog: Dialog,
+    val oldView: NativeToastView,
+    val newDialog: Dialog,
+    val newView: NativeToastView,
+    val remainingMs: Long,
+  )
+
   var defaults: ToastConfig = ToastConfig()
     private set
 
@@ -36,6 +53,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   private var current: ToastConfig? = null
   private var toastView: NativeToastView? = null
   private var windowSlideAnimator: ValueAnimator? = null
+  private val stackedEntries = mutableListOf<StackedEntry>()
+  private val stackedWindowAnimators = mutableMapOf<String, ValueAnimator>()
 
   private var autoDismissAtUptimeMs: Long = 0L
   private val autoDismiss = Runnable { dismiss(current?.id) }
@@ -57,6 +76,13 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   fun show(config: ToastConfig) {
+    if (config.stack && config.position == "top") {
+      showStacked(config)
+      return
+    }
+
+    dismissAllStacked(animated = false)
+
     if (!config.queue) {
       queue.clear()
       dismissCurrent(animated = false, showNext = false)
@@ -70,6 +96,12 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   fun update(id: String, options: ReadableMap) {
+    val stacked = stackedEntries.firstOrNull { it.config.id == id }
+    if (stacked != null) {
+      updateStacked(stacked, ToastConfig.update(options, stacked.config))
+      return
+    }
+
     val showing = current
 
     if (showing?.id == id) {
@@ -87,6 +119,12 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   fun dismiss(id: String?) {
+    val stackedId = id ?: stackedEntries.lastOrNull()?.config?.id
+    if (stackedId != null && stackedEntries.any { it.config.id == stackedId }) {
+      dismissStacked(stackedId, animated = true)
+      return
+    }
+
     val showing = current
 
     when {
@@ -98,7 +136,223 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
   fun dismissAll() {
     queue.clear()
+    if (stackedEntries.isNotEmpty()) {
+      dismissAllStacked(animated = true)
+      return
+    }
     dismissCurrent(animated = true, showNext = false)
+  }
+
+  private fun showStacked(config: ToastConfig) {
+    val activity = reactContext.currentActivity ?: return
+    if (activity.isFinishing || activity.isDestroyed) return
+
+    queue.clear()
+    if (current != null) {
+      dismissCurrent(animated = false, showNext = false)
+    }
+
+    val toast = NativeToastView(activity, config) { dismiss(config.id) }
+    val container = createContainer(activity, toast, config)
+    val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
+
+    try {
+      nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+      nextDialog.setCanceledOnTouchOutside(false)
+      nextDialog.setCancelable(false)
+      nextDialog.setContentView(container)
+      nextDialog.window?.let {
+        configureWindow(it, config, activity, hideTopSlide = true)
+      }
+      nextDialog.show()
+      nextDialog.window?.let {
+        configureWindow(it, config, activity, hideTopSlide = true)
+      }
+    } catch (error: Throwable) {
+      Log.w(TAG, "Failed to show stacked toast dialog", error)
+      try {
+        nextDialog.dismiss()
+      } catch (_: Throwable) {
+        // Ignore cleanup failure.
+      }
+      return
+    }
+
+    val entry = StackedEntry(config, nextDialog, toast)
+    stackedEntries.add(entry)
+
+    while (stackedEntries.size > config.stackLimit) {
+      removeStackedEntry(stackedEntries.first())
+    }
+
+    attachWindowFocusListener(activity)
+    toast.alpha = 1f
+    toast.post {
+      if (stackedEntries.contains(entry)) {
+        updateStackLayout(activity, enteringId = config.id)
+      }
+    }
+    scheduleStackAutoDismiss(entry)
+
+    if (activity.window?.decorView?.hasWindowFocus() == false) {
+      scheduleZOrderMaintenance()
+    }
+  }
+
+  private fun updateStacked(entry: StackedEntry, config: ToastConfig) {
+    val activity = reactContext.currentActivity ?: return
+    if (activity.isFinishing || activity.isDestroyed) return
+
+    val toast = NativeToastView(activity, config) { dismiss(config.id) }
+    val container = createContainer(activity, toast, config)
+
+    try {
+      entry.dialog.setContentView(container)
+      entry.dialog.window?.let { configureWindow(it, config, activity) }
+    } catch (error: Throwable) {
+      Log.w(TAG, "Failed to update stacked toast", error)
+      return
+    }
+
+    entry.config = config
+    entry.view = toast
+    toast.alpha = 1f
+    scheduleStackAutoDismiss(entry)
+    updateStackLayout(activity)
+  }
+
+  private fun scheduleStackAutoDismiss(
+    entry: StackedEntry,
+    durationOverrideMs: Long? = null,
+  ) {
+    entry.dismissRunnable?.let { mainHandler.removeCallbacks(it) }
+    entry.dismissRunnable = null
+
+    val delayMs = durationOverrideMs ?: entry.config.durationMs
+    if (delayMs <= 0L) {
+      entry.dismissAtUptimeMs = 0L
+      return
+    }
+
+    val runnable = Runnable { dismissStacked(entry.config.id, animated = true) }
+    entry.dismissRunnable = runnable
+    entry.dismissAtUptimeMs = SystemClock.uptimeMillis() + delayMs
+    mainHandler.postDelayed(runnable, delayMs)
+  }
+
+  private fun updateStackLayout(activity: Activity, enteringId: String? = null) {
+    val lastIndex = stackedEntries.lastIndex
+
+    stackedEntries.forEachIndexed { index, entry ->
+      val depth = lastIndex - index
+      val targetY =
+        dp(activity, entry.config.topOffsetDp + depth * entry.config.stackOffsetDp)
+      val targetScale = (1f - depth * 0.035f).coerceAtLeast(0.9f)
+      val targetAlpha = (1f - depth * 0.2f).coerceAtLeast(0.55f)
+
+      entry.view.animate()
+        .scaleX(targetScale)
+        .scaleY(targetScale)
+        .alpha(targetAlpha)
+        .setDuration(180L)
+        .setInterpolator(DecelerateInterpolator())
+        .start()
+
+      val window = entry.dialog.window ?: return@forEachIndexed
+      val startY = if (entry.config.id == enteringId) {
+        -(statusBarHeight(activity) + entry.view.height + dp(activity, 8))
+      } else {
+        window.attributes.y
+      }
+      animateStackWindow(entry.config.id, window, startY, targetY)
+    }
+  }
+
+  private fun animateStackWindow(
+    id: String,
+    window: Window,
+    startY: Int,
+    targetY: Int,
+  ) {
+    stackedWindowAnimators.remove(id)?.cancel()
+    setWindowY(window, startY)
+
+    val animator = ValueAnimator.ofInt(startY, targetY).apply {
+      duration = 280L
+      interpolator = DecelerateInterpolator()
+      addUpdateListener { setWindowY(window, it.animatedValue as Int) }
+      addListener(object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator) {
+          if (stackedWindowAnimators[id] === animation) {
+            stackedWindowAnimators.remove(id)
+            setWindowY(window, targetY)
+          }
+        }
+      })
+    }
+
+    stackedWindowAnimators[id] = animator
+    animator.start()
+  }
+
+  private fun dismissStacked(id: String, animated: Boolean) {
+    val entry = stackedEntries.firstOrNull { it.config.id == id } ?: return
+    entry.dismissRunnable?.let { mainHandler.removeCallbacks(it) }
+    entry.dismissRunnable = null
+    entry.dismissAtUptimeMs = 0L
+    stackedWindowAnimators.remove(id)?.cancel()
+
+    if (!animated || entry.config.animation == "none") {
+      removeStackedEntry(entry)
+      updateStackLayoutIfPossible()
+      return
+    }
+
+    entry.view.animate()
+      .alpha(0f)
+      .translationY(14 * entry.view.resources.displayMetrics.density)
+      .setDuration(180L)
+      .setInterpolator(AccelerateInterpolator())
+      .setListener(object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator) {
+          entry.view.animate().setListener(null)
+          removeStackedEntry(entry)
+          updateStackLayoutIfPossible()
+        }
+      })
+      .start()
+  }
+
+  private fun dismissAllStacked(animated: Boolean) {
+    val entries = stackedEntries.toList()
+    if (animated) {
+      entries.forEach { dismissStacked(it.config.id, animated = true) }
+    } else {
+      entries.forEach(::removeStackedEntry)
+    }
+  }
+
+  private fun removeStackedEntry(entry: StackedEntry) {
+    entry.dismissRunnable?.let { mainHandler.removeCallbacks(it) }
+    entry.dismissRunnable = null
+    entry.dismissAtUptimeMs = 0L
+    stackedWindowAnimators.remove(entry.config.id)?.cancel()
+    stackedEntries.remove(entry)
+    try {
+      entry.dialog.dismiss()
+    } catch (_: Throwable) {
+      // Ignore stale window cleanup failure.
+    }
+  }
+
+  private fun updateStackLayoutIfPossible() {
+    val activity = reactContext.currentActivity ?: return
+    if (!activity.isFinishing && !activity.isDestroyed) {
+      updateStackLayout(activity)
+    }
+    if (stackedEntries.isEmpty() && current == null) {
+      detachWindowFocusListener()
+    }
   }
 
   private fun present(
@@ -351,8 +605,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
    * RN Modal and many bottom-sheet libraries use separate application windows.
    * Android stacks a newly attached application window above older windows of
    * the same type, so a permission-free toast cannot reserve a permanent global
-   * top layer. When the Activity loses focus, replace the covered toast window
-   * with an identical, already-visible one.
+   * top layer. When the Activity loses focus, replace covered toast windows
+   * with identical, already-visible ones.
    */
   private fun attachWindowFocusListener(activity: Activity) {
     val alreadyAttached =
@@ -364,7 +618,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
     val decorView = activity.window?.decorView ?: return
     val listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
-      if (!hasFocus && current != null) {
+      if (!hasFocus && (current != null || stackedEntries.isNotEmpty())) {
         scheduleZOrderMaintenance()
       }
     }
@@ -399,14 +653,22 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   private fun scheduleZOrderMaintenance() {
-    if (current == null || isRebumpingDialog) return
+    if ((current == null && stackedEntries.isEmpty()) || isRebumpingDialog) return
 
     pendingZOrderRunnable?.let { mainHandler.removeCallbacks(it) }
     val token = ++zOrderToken
     val runnable = Runnable {
       pendingZOrderRunnable = null
-      if (token == zOrderToken && current != null && !isRebumpingDialog) {
-        rebumpToastDialogToFront()
+      if (
+        token == zOrderToken &&
+        (current != null || stackedEntries.isNotEmpty()) &&
+        !isRebumpingDialog
+      ) {
+        if (stackedEntries.isNotEmpty()) {
+          rebumpStackedDialogsToFront()
+        } else {
+          rebumpToastDialogToFront()
+        }
       }
     }
 
@@ -506,6 +768,136 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     }, POST_REBUMP_SUPPRESSION_MS)
   }
 
+  private fun rebumpStackedDialogsToFront() {
+    val now = SystemClock.uptimeMillis()
+    if (now - lastRebumpAtUptimeMs < MIN_REBUMP_INTERVAL_MS) return
+
+    val activity = reactContext.currentActivity ?: return
+    if (activity.isFinishing || activity.isDestroyed) return
+
+    val expiredEntries = stackedEntries.filter {
+      it.config.durationMs > 0L &&
+        it.dismissAtUptimeMs > 0L &&
+        it.dismissAtUptimeMs <= now
+    }
+    expiredEntries.forEach(::removeStackedEntry)
+    if (stackedEntries.isEmpty()) {
+      if (current == null) detachWindowFocusListener()
+      return
+    }
+
+    lastRebumpAtUptimeMs = now
+    isRebumpingDialog = true
+
+    val remainingById = stackedEntries.associate { entry ->
+      val remainingMs = when {
+        entry.config.durationMs <= 0L -> 0L
+        entry.dismissAtUptimeMs <= 0L -> entry.config.durationMs
+        else -> (entry.dismissAtUptimeMs - now).coerceAtLeast(1L)
+      }
+      entry.config.id to remainingMs
+    }
+
+    stackedEntries.forEach { entry ->
+      entry.dismissRunnable?.let { mainHandler.removeCallbacks(it) }
+      entry.dismissRunnable = null
+      stackedWindowAnimators.remove(entry.config.id)?.cancel()
+      entry.view.animate().cancel()
+    }
+
+    val replacements = mutableListOf<StackedReplacement>()
+    val lastIndex = stackedEntries.lastIndex
+
+    try {
+      stackedEntries.forEachIndexed { index, entry ->
+        val config = entry.config
+        val viewConfig = config.copy(haptic = false)
+        val toast = NativeToastView(activity, viewConfig) { dismiss(config.id) }
+        val container = createContainer(activity, toast, config)
+        val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
+
+        nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        nextDialog.setCanceledOnTouchOutside(false)
+        nextDialog.setCancelable(false)
+        nextDialog.setContentView(container)
+        nextDialog.window?.let { configureWindow(it, config, activity) }
+        nextDialog.show()
+        nextDialog.window?.let { window ->
+          configureWindow(window, config, activity)
+          val depth = lastIndex - index
+          setWindowY(
+            window,
+            dp(activity, config.topOffsetDp + depth * config.stackOffsetDp)
+          )
+        }
+
+        val depth = lastIndex - index
+        toast.alpha = (1f - depth * 0.2f).coerceAtLeast(0.55f)
+        toast.scaleX = (1f - depth * 0.035f).coerceAtLeast(0.9f)
+        toast.scaleY = toast.scaleX
+        toast.translationX = 0f
+        toast.translationY = 0f
+
+        replacements.add(
+          StackedReplacement(
+            entry = entry,
+            oldDialog = entry.dialog,
+            oldView = entry.view,
+            newDialog = nextDialog,
+            newView = toast,
+            remainingMs = remainingById[config.id] ?: 0L,
+          )
+        )
+      }
+    } catch (error: Throwable) {
+      Log.w(TAG, "Failed to move stacked toasts above the new window", error)
+      replacements.forEach {
+        try {
+          it.newDialog.dismiss()
+        } catch (_: Throwable) {
+          // Ignore replacement cleanup failure.
+        }
+      }
+      stackedEntries.forEach { entry ->
+        scheduleStackAutoDismiss(
+          entry,
+          remainingById[entry.config.id] ?: entry.config.durationMs
+        )
+      }
+      isRebumpingDialog = false
+      return
+    }
+
+    replacements.forEach { replacement ->
+      replacement.entry.dialog = replacement.newDialog
+      replacement.entry.view = replacement.newView
+      scheduleStackAutoDismiss(
+        replacement.entry,
+        if (replacement.entry.config.durationMs > 0L) {
+          replacement.remainingMs
+        } else {
+          0L
+        }
+      )
+    }
+    attachWindowFocusListener(activity)
+
+    mainHandler.post {
+      replacements.forEach { replacement ->
+        try {
+          replacement.oldView.animate().cancel()
+          replacement.oldDialog.dismiss()
+        } catch (_: Throwable) {
+          // Ignore stale window cleanup failure.
+        }
+      }
+    }
+
+    mainHandler.postDelayed({
+      isRebumpingDialog = false
+    }, POST_REBUMP_SUPPRESSION_MS)
+  }
+
   private fun scheduleAutoDismiss(config: ToastConfig, durationOverrideMs: Long?) {
     mainHandler.removeCallbacks(autoDismiss)
 
@@ -570,7 +962,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   override fun onHostResume() {
-    if (current != null) {
+    if (current != null || stackedEntries.isNotEmpty()) {
       scheduleZOrderMaintenance()
     }
   }
@@ -578,7 +970,9 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   override fun onHostPause() = Unit
 
   override fun onHostDestroy() {
-    dismissAll()
+    queue.clear()
+    dismissAllStacked(animated = false)
+    dismissCurrent(animated = false, showNext = false)
     detachWindowFocusListener()
     mainHandler.removeCallbacksAndMessages(null)
     reactContext.removeLifecycleEventListener(this)

@@ -47,6 +47,9 @@ export type NativeToastOptions = {
   closeOnPress?: boolean;
   haptic?: boolean;
   queue?: boolean;
+  stack?: boolean;
+  stackLimit?: number;
+  stackOffset?: number;
 };
 
 export interface Spec extends TurboModule {

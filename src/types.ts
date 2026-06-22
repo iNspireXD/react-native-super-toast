@@ -73,6 +73,12 @@ export type ToastOptions = {
   closeOnPress?: boolean;
   haptic?: boolean;
   queue?: boolean;
+  /** Show concurrent toasts as an overlapping stack instead of a queue. */
+  stack?: boolean;
+  /** Maximum number of visible stacked toasts. */
+  stackLimit?: number;
+  /** Vertical distance in points between stacked toast layers. */
+  stackOffset?: number;
 };
 
 export type ToastDefaults = Omit<

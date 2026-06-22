@@ -53,6 +53,9 @@ data class ToastConfig(
   val closeOnPress: Boolean = false,
   val haptic: Boolean = false,
   val queue: Boolean = true,
+  val stack: Boolean = false,
+  val stackLimit: Int = 3,
+  val stackOffsetDp: Int = 10,
 ) {
   companion object {
     fun from(map: ReadableMap, defaults: ToastConfig): ToastConfig {
@@ -91,6 +94,9 @@ data class ToastConfig(
         closeOnPress = map.bool("closeOnPress") ?: defaults.closeOnPress,
         haptic = map.bool("haptic") ?: defaults.haptic,
         queue = map.bool("queue") ?: defaults.queue,
+        stack = map.bool("stack") ?: defaults.stack,
+        stackLimit = (map.int("stackLimit") ?: defaults.stackLimit).coerceAtLeast(1),
+        stackOffsetDp = (map.int("stackOffset") ?: defaults.stackOffsetDp).coerceAtLeast(0),
       )
     }
 
@@ -137,6 +143,9 @@ data class ToastConfig(
         closeOnPress = map.bool("closeOnPress") ?: current.closeOnPress,
         haptic = map.bool("haptic") ?: current.haptic,
         queue = current.queue,
+        stack = current.stack,
+        stackLimit = current.stackLimit,
+        stackOffsetDp = current.stackOffsetDp,
       )
     }
 

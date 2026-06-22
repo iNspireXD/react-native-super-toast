@@ -33,6 +33,9 @@ export type ResolvedToast = Required<
     | 'closeOnPress'
     | 'haptic'
     | 'queue'
+    | 'stack'
+    | 'stackLimit'
+    | 'stackOffset'
   >
 > &
   Pick<NativeToastOptions, 'title' | 'message' | 'icon'> & {
@@ -42,6 +45,8 @@ export type ResolvedToast = Required<
 type ToastSnapshot = {
   current: ResolvedToast | null;
   dismissing: boolean;
+  stacked: ResolvedToast[];
+  stackedDismissingIds: string[];
 };
 
 const palette = {
@@ -84,13 +89,23 @@ const initialDefaults: Omit<
   closeOnPress: false,
   haptic: false,
   queue: true,
+  stack: false,
+  stackLimit: 3,
+  stackOffset: 10,
 };
 
 let defaults: NativeToastOptions = {};
 let current: ResolvedToast | null = null;
 let toastQueue: ResolvedToast[] = [];
 let dismissing = false;
-let snapshot: ToastSnapshot = { current, dismissing };
+let stackedToasts: ResolvedToast[] = [];
+let stackedDismissingIds = new Set<string>();
+let snapshot: ToastSnapshot = {
+  current,
+  dismissing,
+  stacked: stackedToasts,
+  stackedDismissingIds: [],
+};
 const listeners = new Set<() => void>();
 
 function makeId(): string {
@@ -98,7 +113,12 @@ function makeId(): string {
 }
 
 function emit(): void {
-  snapshot = { current, dismissing };
+  snapshot = {
+    current,
+    dismissing,
+    stacked: stackedToasts,
+    stackedDismissingIds: [...stackedDismissingIds],
+  };
   listeners.forEach((listener) => listener());
 }
 
@@ -121,7 +141,20 @@ function resolveToast(options: NativeToastOptions): ResolvedToast {
 export function show(options: NativeToastOptions): string {
   const toast = resolveToast(options);
 
-  if (!toast.queue) {
+  if (toast.stack && toast.position === 'top') {
+    current = null;
+    toastQueue = [];
+    dismissing = false;
+    stackedToasts = [...stackedToasts, toast].slice(-toast.stackLimit);
+    stackedDismissingIds = new Set(
+      [...stackedDismissingIds].filter((id) =>
+        stackedToasts.some((stackedToast) => stackedToast.id === id)
+      )
+    );
+    emit();
+  } else if (!toast.queue) {
+    stackedToasts = [];
+    stackedDismissingIds = new Set();
     toastQueue = [];
     current = toast;
     dismissing = false;
@@ -129,6 +162,8 @@ export function show(options: NativeToastOptions): string {
   } else if (current) {
     toastQueue = [...toastQueue, toast];
   } else {
+    stackedToasts = [];
+    stackedDismissingIds = new Set();
     current = toast;
     dismissing = false;
     emit();
@@ -166,6 +201,16 @@ function updateToast(
 }
 
 export function update(id: string, options: NativeToastOptions): void {
+  const stackedIndex = stackedToasts.findIndex((toast) => toast.id === id);
+  if (stackedIndex >= 0) {
+    stackedToasts = stackedToasts.map((toast) =>
+      toast.id === id ? updateToast(toast, options) : toast
+    );
+    stackedDismissingIds.delete(id);
+    emit();
+    return;
+  }
+
   if (current?.id === id) {
     current = updateToast(current, options);
     dismissing = false;
@@ -179,6 +224,17 @@ export function update(id: string, options: NativeToastOptions): void {
 }
 
 export function dismiss(id: string | null): void {
+  const stackedId = id ?? stackedToasts.at(-1)?.id;
+  if (
+    stackedId &&
+    stackedToasts.some((toast) => toast.id === stackedId) &&
+    !stackedDismissingIds.has(stackedId)
+  ) {
+    stackedDismissingIds = new Set(stackedDismissingIds).add(stackedId);
+    emit();
+    return;
+  }
+
   if (!id || current?.id === id) {
     if (current && !dismissing) {
       dismissing = true;
@@ -192,7 +248,12 @@ export function dismiss(id: string | null): void {
 
 export function dismissAll(): void {
   toastQueue = [];
-  dismiss(null);
+  if (stackedToasts.length > 0) {
+    stackedDismissingIds = new Set(stackedToasts.map((toast) => toast.id));
+    emit();
+  } else {
+    dismiss(null);
+  }
 }
 
 export function configure(nextDefaults: NativeToastOptions): void {
@@ -200,6 +261,15 @@ export function configure(nextDefaults: NativeToastOptions): void {
 }
 
 export function completeDismiss(id: string): void {
+  if (stackedToasts.some((toast) => toast.id === id)) {
+    stackedToasts = stackedToasts.filter((toast) => toast.id !== id);
+    stackedDismissingIds = new Set(
+      [...stackedDismissingIds].filter((toastId) => toastId !== id)
+    );
+    emit();
+    return;
+  }
+
   if (current?.id !== id) return;
 
   current = toastQueue[0] ?? null;

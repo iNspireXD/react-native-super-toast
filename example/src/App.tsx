@@ -44,6 +44,9 @@ export default function App() {
       swipeToDismiss: false,
       closeOnPress: true,
       queue: false,
+      stack: true,
+      stackLimit: 3,
+      stackOffset: 10,
       haptic: false,
     });
   }, []);
@@ -144,6 +147,25 @@ export default function App() {
     });
   }
 
+  function showStackDemo() {
+    const messages = [
+      'Your changes were saved.',
+      'A new message just arrived.',
+      'Background sync completed.',
+    ];
+
+    messages.forEach((message, index) => {
+      setTimeout(() => {
+        SuperToast.show({
+          title: `Stacked toast ${index + 1}`,
+          message,
+          duration: 3200 + index * 500,
+          stack: true,
+        });
+      }, index * 450);
+    });
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -200,6 +222,10 @@ export default function App() {
             title="Simulate failed upload"
             onPress={() => simulateUpload(true)}
           />
+
+          <View style={styles.gap} />
+
+          <Button title="Show stacked toast demo" onPress={showStackDemo} />
         </View>
 
         <View style={styles.card}>
