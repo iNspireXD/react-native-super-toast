@@ -141,7 +141,7 @@ function resolveToast(options: NativeToastOptions): ResolvedToast {
 export function show(options: NativeToastOptions): string {
   const toast = resolveToast(options);
 
-  if (toast.stack && toast.position === 'top') {
+  if (toast.stack && toast.position !== 'center') {
     current = null;
     toastQueue = [];
     dismissing = false;

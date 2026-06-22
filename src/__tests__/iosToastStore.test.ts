@@ -93,3 +93,21 @@ it('shows and independently dismisses stacked iOS overlay toasts', () => {
 
   expect(firstId).not.toBe(secondId);
 });
+
+it('supports stacked bottom-positioned iOS overlay toasts', () => {
+  const id = show({
+    message: 'Bottom stack',
+    duration: 0,
+    position: 'bottom',
+    stack: true,
+  });
+
+  expect(getSnapshot().stacked[0]).toMatchObject({
+    id,
+    position: 'bottom',
+    stack: true,
+  });
+
+  dismiss(id);
+  completeDismiss(id);
+});

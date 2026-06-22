@@ -88,9 +88,9 @@ dismissal, haptics, and persistent toasts.
 
 ### Stacked toasts
 
-Enable `stack` for overlapping top-positioned toasts. New toasts appear in
-front, while older toasts remain visible underneath and keep their own
-durations.
+Enable `stack` for overlapping top- or bottom-positioned toasts. New toasts
+appear in front, while older toasts remain visible underneath and keep their
+own durations.
 
 ```tsx
 SuperToast.configure({

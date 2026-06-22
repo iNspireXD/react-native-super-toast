@@ -55,6 +55,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   private var windowSlideAnimator: ValueAnimator? = null
   private val stackedEntries = mutableListOf<StackedEntry>()
   private val stackedWindowAnimators = mutableMapOf<String, ValueAnimator>()
+  private val stackedDismissingIds = mutableSetOf<String>()
 
   private var autoDismissAtUptimeMs: Long = 0L
   private val autoDismiss = Runnable { dismiss(current?.id) }
@@ -76,7 +77,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   fun show(config: ToastConfig) {
-    if (config.stack && config.position == "top") {
+    if (config.stack && config.position != "center") {
       showStacked(config)
       return
     }
@@ -155,6 +156,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val toast = NativeToastView(activity, config) { dismiss(config.id) }
     val container = createContainer(activity, toast, config)
     val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
+    val animateEdgeSlide = config.animation == "slide"
 
     try {
       nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -162,11 +164,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       nextDialog.setCancelable(false)
       nextDialog.setContentView(container)
       nextDialog.window?.let {
-        configureWindow(it, config, activity, hideTopSlide = true)
+        configureWindow(it, config, activity, hideEdgeSlide = animateEdgeSlide)
       }
       nextDialog.show()
       nextDialog.window?.let {
-        configureWindow(it, config, activity, hideTopSlide = true)
+        configureWindow(it, config, activity, hideEdgeSlide = animateEdgeSlide)
       }
     } catch (error: Throwable) {
       Log.w(TAG, "Failed to show stacked toast dialog", error)
@@ -186,7 +188,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     }
 
     attachWindowFocusListener(activity)
-    toast.alpha = 1f
+    toast.alpha = if (config.animation == "none") 1f else 0f
+    if (config.animation == "scale") {
+      toast.scaleX = 0.96f
+      toast.scaleY = 0.96f
+    }
     toast.post {
       if (stackedEntries.contains(entry)) {
         updateStackLayout(activity, enteringId = config.id)
@@ -241,12 +247,14 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   }
 
   private fun updateStackLayout(activity: Activity, enteringId: String? = null) {
-    val lastIndex = stackedEntries.lastIndex
+    val visibleEntries = stackedEntries.filterNot {
+      stackedDismissingIds.contains(it.config.id)
+    }
+    val lastIndex = visibleEntries.lastIndex
 
-    stackedEntries.forEachIndexed { index, entry ->
+    visibleEntries.forEachIndexed { index, entry ->
       val depth = lastIndex - index
-      val targetY =
-        dp(activity, entry.config.topOffsetDp + depth * entry.config.stackOffsetDp)
+      val targetY = stackWindowY(activity, entry.config, depth)
       val targetScale = (1f - depth * 0.035f).coerceAtLeast(0.9f)
       val targetAlpha = (1f - depth * 0.2f).coerceAtLeast(0.55f)
 
@@ -259,8 +267,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
         .start()
 
       val window = entry.dialog.window ?: return@forEachIndexed
-      val startY = if (entry.config.id == enteringId) {
-        -(statusBarHeight(activity) + entry.view.height + dp(activity, 8))
+      val startY = if (
+        entry.config.id == enteringId &&
+        entry.config.animation == "slide"
+      ) {
+        edgeOffscreenY(activity, entry.config, entry.view.height)
       } else {
         window.attributes.y
       }
@@ -295,8 +306,36 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     animator.start()
   }
 
+  private fun animateStackWindowOut(
+    entry: StackedEntry,
+    window: Window,
+    activity: Activity,
+  ) {
+    val startY = window.attributes.y
+    val targetY = edgeOffscreenY(activity, entry.config, entry.view.height)
+    val animator = ValueAnimator.ofInt(startY, targetY).apply {
+      duration = 220L
+      interpolator = AccelerateInterpolator()
+      addUpdateListener { setWindowY(window, it.animatedValue as Int) }
+      addListener(object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator) {
+          if (stackedWindowAnimators[entry.config.id] === animation) {
+            stackedWindowAnimators.remove(entry.config.id)
+            removeStackedEntry(entry)
+            updateStackLayoutIfPossible()
+          }
+        }
+      })
+    }
+
+    stackedWindowAnimators[entry.config.id] = animator
+    animator.start()
+  }
+
   private fun dismissStacked(id: String, animated: Boolean) {
     val entry = stackedEntries.firstOrNull { it.config.id == id } ?: return
+    if (!stackedDismissingIds.add(id)) return
+
     entry.dismissRunnable?.let { mainHandler.removeCallbacks(it) }
     entry.dismissRunnable = null
     entry.dismissAtUptimeMs = 0L
@@ -308,19 +347,37 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       return
     }
 
-    entry.view.animate()
+    val activity = reactContext.currentActivity
+    val window = entry.dialog.window
+    if (activity == null || window == null) {
+      removeStackedEntry(entry)
+      updateStackLayoutIfPossible()
+      return
+    }
+
+    val viewAnimator = entry.view.animate()
       .alpha(0f)
-      .translationY(14 * entry.view.resources.displayMetrics.density)
       .setDuration(180L)
       .setInterpolator(AccelerateInterpolator())
-      .setListener(object : AnimatorListenerAdapter() {
-        override fun onAnimationEnd(animation: Animator) {
-          entry.view.animate().setListener(null)
-          removeStackedEntry(entry)
-          updateStackLayoutIfPossible()
-        }
-      })
-      .start()
+
+    if (entry.config.animation == "scale") {
+      viewAnimator.scaleX(0.96f).scaleY(0.96f)
+    }
+
+    if (entry.config.animation == "slide") {
+      viewAnimator.start()
+      animateStackWindowOut(entry, window, activity)
+    } else {
+      viewAnimator
+        .setListener(object : AnimatorListenerAdapter() {
+          override fun onAnimationEnd(animation: Animator) {
+            entry.view.animate().setListener(null)
+            removeStackedEntry(entry)
+            updateStackLayoutIfPossible()
+          }
+        })
+        .start()
+    }
   }
 
   private fun dismissAllStacked(animated: Boolean) {
@@ -337,6 +394,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     entry.dismissRunnable = null
     entry.dismissAtUptimeMs = 0L
     stackedWindowAnimators.remove(entry.config.id)?.cancel()
+    stackedDismissingIds.remove(entry.config.id)
     stackedEntries.remove(entry)
     try {
       entry.dialog.dismiss()
@@ -367,8 +425,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val toast = NativeToastView(activity, viewConfig) { dismiss(config.id) }
     val container = createContainer(activity, toast, config)
     val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
-    val animateTopSlide =
-      animate && config.animation == "slide" && config.position == "top"
+    val animateEdgeSlide =
+      animate && config.animation == "slide" && config.position != "center"
 
     try {
       nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -377,11 +435,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       nextDialog.setContentView(container)
 
       nextDialog.window?.let {
-        configureWindow(it, config, activity, hideTopSlide = animateTopSlide)
+        configureWindow(it, config, activity, hideEdgeSlide = animateEdgeSlide)
       }
       nextDialog.show()
       nextDialog.window?.let {
-        configureWindow(it, config, activity, hideTopSlide = animateTopSlide)
+        configureWindow(it, config, activity, hideEdgeSlide = animateEdgeSlide)
       }
     } catch (error: Throwable) {
       Log.w(TAG, "Failed to show toast dialog", error)
@@ -401,11 +459,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
     attachWindowFocusListener(activity)
 
-    if (animateTopSlide) {
+    if (animateEdgeSlide) {
       toast.alpha = 1f
       toast.post {
         if (dialog === nextDialog && current?.id == config.id) {
-          animateTopWindowIn(nextDialog.window, activity, config, toast.height)
+          animateEdgeWindowIn(nextDialog.window, activity, config, toast.height)
         }
       }
     } else if (animate) {
@@ -486,7 +544,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     window: Window,
     config: ToastConfig,
     activity: Activity,
-    hideTopSlide: Boolean = false,
+    hideEdgeSlide: Boolean = false,
   ) {
     window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
@@ -513,10 +571,15 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     attrs.height = WindowManager.LayoutParams.WRAP_CONTENT
 
     attrs.y = when (config.position) {
-      "bottom" -> dp(activity, config.bottomOffsetDp)
+      "bottom" ->
+        if (hideEdgeSlide) {
+          -activity.resources.displayMetrics.heightPixels
+        } else {
+          dp(activity, config.bottomOffsetDp)
+        }
       "center" -> 0
       else ->
-        if (hideTopSlide) {
+        if (hideEdgeSlide) {
           -activity.resources.displayMetrics.heightPixels
         } else {
           dp(activity, config.topOffsetDp)
@@ -529,7 +592,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     window.setLayout(attrs.width, attrs.height)
   }
 
-  private fun animateTopWindowIn(
+  private fun animateEdgeWindowIn(
     window: Window?,
     activity: Activity,
     config: ToastConfig,
@@ -539,8 +602,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
     cancelWindowSlideAnimation()
 
-    val startY = -(statusBarHeight(activity) + toastHeight + dp(activity, 8))
-    val endY = dp(activity, config.topOffsetDp)
+    val startY = edgeOffscreenY(activity, config, toastHeight)
+    val endY = edgeRestingY(activity, config)
     setWindowY(window, startY)
 
     val animator = ValueAnimator.ofInt(startY, endY).apply {
@@ -561,16 +624,17 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     animator.start()
   }
 
-  private fun animateTopWindowOut(
+  private fun animateEdgeWindowOut(
     window: Window,
     activity: Activity,
+    config: ToastConfig,
     toastHeight: Int,
     after: () -> Unit,
   ) {
     cancelWindowSlideAnimation()
 
     val startY = window.attributes.y
-    val endY = -(statusBarHeight(activity) + toastHeight + dp(activity, 8))
+    val endY = edgeOffscreenY(activity, config, toastHeight)
     val animator = ValueAnimator.ofInt(startY, endY).apply {
       duration = 220L
       interpolator = AccelerateInterpolator()
@@ -825,10 +889,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
         nextDialog.window?.let { window ->
           configureWindow(window, config, activity)
           val depth = lastIndex - index
-          setWindowY(
-            window,
-            dp(activity, config.topOffsetDp + depth * config.stackOffsetDp)
-          )
+          setWindowY(window, stackWindowY(activity, config, depth))
         }
 
         val depth = lastIndex - index
@@ -943,11 +1004,11 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       view != null &&
       showing != null &&
       showing.animation == "slide" &&
-      showing.position == "top" &&
+      showing.position != "center" &&
       activeWindow != null &&
       activity != null
     ) {
-      animateTopWindowOut(activeWindow, activity, view.height, finish)
+      animateEdgeWindowOut(activeWindow, activity, showing, view.height, finish)
     } else if (animated && view != null) {
       view.animateOut(finish)
     } else {
@@ -978,6 +1039,41 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     reactContext.removeLifecycleEventListener(this)
   }
 
+  private fun edgeRestingY(activity: Activity, config: ToastConfig): Int {
+    val offset = if (config.position == "bottom") {
+      config.bottomOffsetDp
+    } else {
+      config.topOffsetDp
+    }
+    return dp(activity, offset)
+  }
+
+  private fun edgeOffscreenY(
+    activity: Activity,
+    config: ToastConfig,
+    toastHeight: Int,
+  ): Int {
+    val systemBarHeight = if (config.position == "bottom") {
+      navigationBarHeight(activity)
+    } else {
+      statusBarHeight(activity)
+    }
+    return -(systemBarHeight + toastHeight + dp(activity, 8))
+  }
+
+  private fun stackWindowY(
+    activity: Activity,
+    config: ToastConfig,
+    depth: Int,
+  ): Int {
+    val stackOffset = dp(activity, depth * config.stackOffsetDp)
+    return if (config.position == "bottom") {
+      edgeRestingY(activity, config) - stackOffset
+    } else {
+      edgeRestingY(activity, config) + stackOffset
+    }
+  }
+
   private fun dp(activity: Activity, value: Int): Int {
     return (value * activity.resources.displayMetrics.density).toInt()
   }
@@ -985,6 +1081,12 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
   private fun statusBarHeight(activity: Activity): Int {
     val resources = activity.resources
     val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+    return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
+  }
+
+  private fun navigationBarHeight(activity: Activity): Int {
+    val resources = activity.resources
+    val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
     return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
   }
 

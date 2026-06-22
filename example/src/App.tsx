@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Platform,
 } from 'react-native';
 
 import SuperToast, { SuperToastHost } from 'react-native-super-toast';
@@ -27,12 +28,12 @@ export default function App() {
 
   useEffect(() => {
     SuperToast.configure({
-      position: 'top',
+      position: 'bottom',
       duration: 3000,
       animation: 'slide',
       widthMode: 'screen',
-      topOffset: 65,
-      bottomOffset: 24,
+      topOffset: Platform.OS === 'ios' ? 24 : 54,
+      bottomOffset: Platform.OS === 'ios' ? 24 : 64,
       horizontalMargin: 16,
       maxWidth: 340,
       borderRadius: 8,

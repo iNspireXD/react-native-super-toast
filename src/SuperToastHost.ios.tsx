@@ -7,6 +7,7 @@ import {
 } from 'react';
 import {
   Animated,
+  Dimensions,
   Easing,
   Image,
   PanResponder,
@@ -184,7 +185,7 @@ function ToastCard({
     if (
       entranceStarted.current ||
       initialToast.animation !== 'slide' ||
-      initialToast.position !== 'top'
+      initialToast.position === 'center'
     ) {
       return;
     }
@@ -193,7 +194,10 @@ function ToastCard({
       if (entranceStarted.current) return;
 
       entranceStarted.current = true;
-      slideOffset.current = -(y + height + 8);
+      slideOffset.current =
+        initialToast.position === 'bottom'
+          ? Dimensions.get('window').height - y + 8
+          : -(y + height + 8);
       translateY.setValue(slideOffset.current);
 
       requestAnimationFrame(runEntranceAnimation);
@@ -258,7 +262,9 @@ function ToastCard({
 
     if (
       initialToast.animation !== 'none' &&
-      !(initialToast.animation === 'slide' && initialToast.position === 'top')
+      !(
+        initialToast.animation === 'slide' && initialToast.position !== 'center'
+      )
     ) {
       entranceStarted.current = true;
       Animated.parallel([
@@ -333,11 +339,9 @@ function ToastCard({
         toValue: stacked
           ? 14
           : toast.animation === 'slide'
-            ? toast.position === 'top'
-              ? slideOffset.current
-              : toast.position === 'bottom'
-                ? 12
-                : -12
+            ? toast.position === 'center'
+              ? -12
+              : slideOffset.current
             : 0,
         duration: stacked ? 180 : toast.animation === 'slide' ? 220 : 140,
         easing: Easing.in(Easing.cubic),
@@ -374,6 +378,10 @@ function ToastCard({
       style={[
         styles.toastShell,
         stacked && styles.stackedToast,
+        stacked &&
+          (toast.position === 'bottom'
+            ? styles.stackedToastBottom
+            : styles.stackedToastTop),
         stacked && toast.widthMode === 'screen' && styles.stackedScreenWidth,
         toast.widthMode === 'screen'
           ? styles.screenWidth
@@ -517,7 +525,12 @@ const styles = StyleSheet.create({
   },
   stackedToast: {
     position: 'absolute',
+  },
+  stackedToastTop: {
     top: 0,
+  },
+  stackedToastBottom: {
+    bottom: 0,
   },
   stackedScreenWidth: {
     width: '100%',
