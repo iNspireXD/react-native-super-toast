@@ -345,13 +345,18 @@ function ToastCard({
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
-        toValue: stacked
-          ? 14
-          : toast.animation === 'slide'
+        toValue:
+          toast.animation === 'slide'
             ? toast.position === 'center'
               ? -12
               : slideOffset.current
             : 0,
+        duration: toast.exitDuration,
+        easing: exitEasing,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: toast.animation === 'scale' ? 0.96 : 1,
         duration: toast.exitDuration,
         easing: exitEasing,
         useNativeDriver: true,
@@ -365,7 +370,7 @@ function ToastCard({
     toast.id,
     toast.position,
     translateY,
-    stacked,
+    scale,
   ]);
 
   useEffect(() => {

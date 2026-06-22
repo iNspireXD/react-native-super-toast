@@ -30,11 +30,11 @@ export default function App() {
     SuperToast.configure({
       position: 'top',
       duration: 3000,
-      animation: 'fade',
+      animation: 'slide',
       enterDuration: 540,
       exitDuration: 230,
       widthMode: 'screen',
-      topOffset: Platform.OS === 'ios' ? 24 : 54,
+      topOffset: Platform.OS === 'ios' ? 8 : 54,
       bottomOffset: Platform.OS === 'ios' ? 24 : 64,
       horizontalMargin: 16,
       maxWidth: 340,
