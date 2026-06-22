@@ -42,6 +42,9 @@ type ToastViewHandle = {
   ): void;
 };
 
+const enterEasing = Easing.bezier(0.16, 1, 0.3, 1);
+const exitEasing = Easing.bezier(0.4, 0, 1, 1);
+
 function LoadingSpinner({ color }: { color: string }) {
   const rotation = useRef(new Animated.Value(0)).current;
 
@@ -168,18 +171,18 @@ function ToastCard({
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
+        duration: initialToast.enterDuration,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
+        duration: initialToast.enterDuration,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opacity, translateY]);
+  }, [initialToast.enterDuration, opacity, translateY]);
 
   const startSlideEntrance = useCallback(() => {
     if (
@@ -208,12 +211,14 @@ function ToastCard({
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 120,
+        duration: 160,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 120,
+        duration: 140,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
     ]).start();
@@ -270,17 +275,20 @@ function ToastCard({
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
-          duration: initialToast.animation === 'fade' ? 140 : 180,
+          duration: initialToast.enterDuration,
+          easing: enterEasing,
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: 0,
-          duration: 180,
+          duration: initialToast.enterDuration,
+          easing: enterEasing,
           useNativeDriver: true,
         }),
         Animated.timing(scale, {
           toValue: 1,
-          duration: 180,
+          duration: initialToast.enterDuration,
+          easing: enterEasing,
           useNativeDriver: true,
         }),
       ]).start();
@@ -293,23 +301,22 @@ function ToastCard({
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(stackTranslateY, {
+      Animated.timing(stackTranslateY, {
         toValue: stackDepth * toast.stackOffset,
-        damping: 20,
-        stiffness: 220,
-        mass: 0.8,
+        duration: toast.enterDuration,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
-      Animated.spring(stackScale, {
+      Animated.timing(stackScale, {
         toValue: Math.max(0.9, 1 - stackDepth * 0.035),
-        damping: 20,
-        stiffness: 220,
-        mass: 0.8,
+        duration: toast.enterDuration,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
       Animated.timing(stackOpacity, {
         toValue: Math.max(0.55, 1 - stackDepth * 0.2),
-        duration: 180,
+        duration: toast.enterDuration,
+        easing: enterEasing,
         useNativeDriver: true,
       }),
     ]).start();
@@ -318,6 +325,7 @@ function ToastCard({
     stackOpacity,
     stackScale,
     stackTranslateY,
+    toast.enterDuration,
     toast.stackOffset,
   ]);
 
@@ -332,7 +340,8 @@ function ToastCard({
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 140,
+        duration: toast.exitDuration,
+        easing: exitEasing,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
@@ -343,8 +352,8 @@ function ToastCard({
               ? -12
               : slideOffset.current
             : 0,
-        duration: stacked ? 180 : toast.animation === 'slide' ? 220 : 140,
-        easing: Easing.in(Easing.cubic),
+        duration: toast.exitDuration,
+        easing: exitEasing,
         useNativeDriver: true,
       }),
     ]).start(() => completeDismiss(toast.id));
@@ -352,6 +361,7 @@ function ToastCard({
     dismissing,
     opacity,
     toast.animation,
+    toast.exitDuration,
     toast.id,
     toast.position,
     translateY,

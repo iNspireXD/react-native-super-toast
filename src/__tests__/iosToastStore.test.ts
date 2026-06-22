@@ -15,6 +15,8 @@ it('queues, replaces, and dismisses iOS overlay toasts', () => {
 
   expect(getSnapshot().current).toMatchObject({
     id: firstId,
+    enterDuration: 320,
+    exitDuration: 230,
     backgroundColor: '#166534',
     iconColor: '#BBF7D0',
   });

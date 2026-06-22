@@ -51,6 +51,10 @@ export type ToastOptions = {
   position?: ToastPosition;
   widthMode?: ToastWidthMode;
   animation?: ToastAnimation;
+  /** Enter animation duration in milliseconds. */
+  enterDuration?: number;
+  /** Exit animation duration in milliseconds. */
+  exitDuration?: number;
   topOffset?: number;
   bottomOffset?: number;
   maxWidth?: number;

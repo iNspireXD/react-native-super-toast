@@ -25,6 +25,8 @@ export type NativeToastOptions = {
   position?: string;
   widthMode?: string;
   animation?: string;
+  enterDuration?: number;
+  exitDuration?: number;
   topOffset?: number;
   bottomOffset?: number;
   maxWidth?: number;

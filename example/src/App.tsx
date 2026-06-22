@@ -28,9 +28,11 @@ export default function App() {
 
   useEffect(() => {
     SuperToast.configure({
-      position: 'bottom',
+      position: 'top',
       duration: 3000,
-      animation: 'slide',
+      animation: 'fade',
+      enterDuration: 540,
+      exitDuration: 230,
       widthMode: 'screen',
       topOffset: Platform.OS === 'ios' ? 24 : 54,
       bottomOffset: Platform.OS === 'ios' ? 24 : 64,

@@ -20,8 +20,7 @@ import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityEvent
-import android.view.animation.AccelerateInterpolator
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -41,6 +40,8 @@ class NativeToastView(
   private var isSwiping = false
   private var isTapCandidate = false
   private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+  private val enterInterpolator = PathInterpolator(0.16f, 1f, 0.3f, 1f)
+  private val exitInterpolator = PathInterpolator(0.4f, 0f, 1f, 1f)
   var maxWidthPx: Int = 0
 
   init {
@@ -281,11 +282,22 @@ class NativeToastView(
     alpha = if (config.animation == "none") 1f else 0f
     when (config.animation) {
       "none" -> return
-      "fade" -> animate().alpha(1f).setDuration(140).start()
+      "fade" ->
+        animate()
+          .alpha(1f)
+          .setDuration(config.enterDurationMs)
+          .setInterpolator(enterInterpolator)
+          .start()
       "scale" -> {
         scaleX = 0.96f
         scaleY = 0.96f
-        animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+        animate()
+          .alpha(1f)
+          .scaleX(1f)
+          .scaleY(1f)
+          .setDuration(config.enterDurationMs)
+          .setInterpolator(enterInterpolator)
+          .start()
       }
 
       else -> {
@@ -298,8 +310,8 @@ class NativeToastView(
           animate()
             .alpha(1f)
             .translationY(0f)
-            .setDuration(300)
-            .setInterpolator(DecelerateInterpolator())
+            .setDuration(config.enterDurationMs)
+            .setInterpolator(enterInterpolator)
             .start()
         }
       }
@@ -320,8 +332,8 @@ class NativeToastView(
     animate()
       .alpha(0f)
       .translationY(targetY)
-      .setDuration(if (config.animation == "slide") 220 else 140)
-      .setInterpolator(AccelerateInterpolator())
+      .setDuration(config.exitDurationMs)
+      .setInterpolator(exitInterpolator)
       .setListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator) {
           animate().setListener(null)
@@ -415,7 +427,8 @@ class NativeToastView(
     animate()
       .translationY(translationStart)
       .alpha(1f)
-      .setDuration(120)
+      .setDuration(160)
+      .setInterpolator(enterInterpolator)
       .start()
   }
 

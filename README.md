@@ -107,6 +107,24 @@ SuperToast.show({ title: 'New message', message: 'Sarah sent a photo.' });
 `stackLimit` controls the visible layer count and `stackOffset` controls how
 many points each older card peeks out below the newest card.
 
+### Animation speed
+
+Use `enterDuration` and `exitDuration` to control animation timing in
+milliseconds. They can be configured globally or overridden per toast.
+
+```tsx
+SuperToast.configure({
+  enterDuration: 320,
+  exitDuration: 230,
+});
+
+SuperToast.show({
+  message: 'Slower entrance, quick exit',
+  enterDuration: 450,
+  exitDuration: 160,
+});
+```
+
 ## Contributing
 
 - [Development workflow](CONTRIBUTING.md#development-workflow)

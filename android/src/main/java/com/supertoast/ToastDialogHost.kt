@@ -16,8 +16,7 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
-import android.view.animation.AccelerateInterpolator
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.ReactApplicationContext
@@ -48,6 +47,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
   private val queue = ArrayDeque<ToastConfig>()
   private val mainHandler = Handler(Looper.getMainLooper())
+  private val enterInterpolator = PathInterpolator(0.16f, 1f, 0.3f, 1f)
+  private val exitInterpolator = PathInterpolator(0.4f, 0f, 1f, 1f)
 
   private var dialog: Dialog? = null
   private var current: ToastConfig? = null
@@ -262,8 +263,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
         .scaleX(targetScale)
         .scaleY(targetScale)
         .alpha(targetAlpha)
-        .setDuration(180L)
-        .setInterpolator(DecelerateInterpolator())
+        .setDuration(entry.config.enterDurationMs)
+        .setInterpolator(enterInterpolator)
         .start()
 
       val window = entry.dialog.window ?: return@forEachIndexed
@@ -275,7 +276,13 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
       } else {
         window.attributes.y
       }
-      animateStackWindow(entry.config.id, window, startY, targetY)
+      animateStackWindow(
+        entry.config.id,
+        window,
+        startY,
+        targetY,
+        entry.config.enterDurationMs,
+      )
     }
   }
 
@@ -284,13 +291,14 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     window: Window,
     startY: Int,
     targetY: Int,
+    durationMs: Long,
   ) {
     stackedWindowAnimators.remove(id)?.cancel()
     setWindowY(window, startY)
 
     val animator = ValueAnimator.ofInt(startY, targetY).apply {
-      duration = 280L
-      interpolator = DecelerateInterpolator()
+      duration = durationMs
+      interpolator = enterInterpolator
       addUpdateListener { setWindowY(window, it.animatedValue as Int) }
       addListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator) {
@@ -314,8 +322,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val startY = window.attributes.y
     val targetY = edgeOffscreenY(activity, entry.config, entry.view.height)
     val animator = ValueAnimator.ofInt(startY, targetY).apply {
-      duration = 220L
-      interpolator = AccelerateInterpolator()
+      duration = entry.config.exitDurationMs
+      interpolator = exitInterpolator
       addUpdateListener { setWindowY(window, it.animatedValue as Int) }
       addListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator) {
@@ -357,8 +365,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
     val viewAnimator = entry.view.animate()
       .alpha(0f)
-      .setDuration(180L)
-      .setInterpolator(AccelerateInterpolator())
+      .setDuration(entry.config.exitDurationMs)
+      .setInterpolator(exitInterpolator)
 
     if (entry.config.animation == "scale") {
       viewAnimator.scaleX(0.96f).scaleY(0.96f)
@@ -607,8 +615,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     setWindowY(window, startY)
 
     val animator = ValueAnimator.ofInt(startY, endY).apply {
-      duration = 300L
-      interpolator = DecelerateInterpolator()
+      duration = config.enterDurationMs
+      interpolator = enterInterpolator
       addUpdateListener { setWindowY(window, it.animatedValue as Int) }
       addListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator) {
@@ -636,8 +644,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val startY = window.attributes.y
     val endY = edgeOffscreenY(activity, config, toastHeight)
     val animator = ValueAnimator.ofInt(startY, endY).apply {
-      duration = 220L
-      interpolator = AccelerateInterpolator()
+      duration = config.exitDurationMs
+      interpolator = exitInterpolator
       addUpdateListener { setWindowY(window, it.animatedValue as Int) }
       addListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator) {

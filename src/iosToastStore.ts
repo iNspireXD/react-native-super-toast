@@ -11,6 +11,8 @@ export type ResolvedToast = Required<
     | 'position'
     | 'widthMode'
     | 'animation'
+    | 'enterDuration'
+    | 'exitDuration'
     | 'topOffset'
     | 'bottomOffset'
     | 'maxWidth'
@@ -67,6 +69,8 @@ const initialDefaults: Omit<
   position: 'top',
   widthMode: 'content',
   animation: 'slide',
+  enterDuration: 320,
+  exitDuration: 230,
   topOffset: 48,
   bottomOffset: 48,
   maxWidth: 420,
@@ -133,6 +137,14 @@ function resolveToast(options: NativeToastOptions): ResolvedToast {
     id: merged.id ?? makeId(),
     kind,
     revision: 0,
+    enterDuration: Math.max(
+      0,
+      merged.enterDuration ?? initialDefaults.enterDuration
+    ),
+    exitDuration: Math.max(
+      0,
+      merged.exitDuration ?? initialDefaults.exitDuration
+    ),
     backgroundColor: merged.backgroundColor ?? colors.background,
     iconColor: merged.iconColor ?? colors.icon,
   };
@@ -186,6 +198,8 @@ function updateToast(
     id: toast.id,
     kind,
     revision: toast.revision + 1,
+    enterDuration: Math.max(0, options.enterDuration ?? toast.enterDuration),
+    exitDuration: Math.max(0, options.exitDuration ?? toast.exitDuration),
     icon:
       options.icon !== undefined
         ? options.icon

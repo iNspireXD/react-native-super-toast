@@ -110,6 +110,8 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
 @property (nonatomic, copy) NSString *position;
 @property (nonatomic, copy) NSString *widthMode;
 @property (nonatomic, copy) NSString *animation;
+@property (nonatomic) NSTimeInterval enterDuration;
+@property (nonatomic) NSTimeInterval exitDuration;
 @property (nonatomic) CGFloat topOffset;
 @property (nonatomic) CGFloat bottomOffset;
 @property (nonatomic) CGFloat maxWidth;
@@ -144,6 +146,8 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
   c.position = @"top";
   c.widthMode = @"content";
   c.animation = @"slide";
+  c.enterDuration = 0.32;
+  c.exitDuration = 0.23;
   c.topOffset = 48;
   c.bottomOffset = 48;
   c.maxWidth = 420;
@@ -196,6 +200,8 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
   c.position = STString(dict, @"position", d.position);
   c.widthMode = STString(dict, @"widthMode", d.widthMode);
   c.animation = STString(dict, @"animation", d.animation);
+  c.enterDuration = MAX(0, STNumber(dict, @"enterDuration", d.enterDuration * 1000) / 1000.0);
+  c.exitDuration = MAX(0, STNumber(dict, @"exitDuration", d.exitDuration * 1000) / 1000.0);
   c.topOffset = STNumber(dict, @"topOffset", d.topOffset);
   c.bottomOffset = STNumber(dict, @"bottomOffset", d.bottomOffset);
   c.maxWidth = STNumber(dict, @"maxWidth", d.maxWidth);
@@ -408,7 +414,7 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
     if (fabs(t.y) > 40) {
       if (self.dismiss) self.dismiss();
     } else {
-      [UIView animateWithDuration:0.12 animations:^{ self.transform = CGAffineTransformIdentity; self.alpha = 1; }];
+      [UIView animateWithDuration:0.16 delay:0 options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction animations:^{ self.transform = CGAffineTransformIdentity; self.alpha = 1; } completion:nil];
     }
   }
 }
@@ -421,7 +427,7 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
     CGFloat y = [self.config.position isEqualToString:@"top"] ? -(CGRectGetMaxY(self.frame) + 8) : ([self.config.position isEqualToString:@"bottom"] ? CGRectGetMaxY(self.superview.bounds) - CGRectGetMinY(self.frame) + 8 : -12);
     self.transform = CGAffineTransformMakeTranslation(0, y);
   }
-  [UIView animateWithDuration:0.30 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+  [UIView animateWithDuration:self.config.enterDuration delay:0 usingSpringWithDamping:0.90 initialSpringVelocity:0.25 options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction animations:^{
     self.alpha = 1;
     self.transform = CGAffineTransformIdentity;
   } completion:nil];
@@ -430,8 +436,7 @@ static UIColor *STColor(NSString *hex, UIColor *fallback) {
 - (void)animateOut:(dispatch_block_t)completion {
   if ([self.config.animation isEqualToString:@"none"]) { if (completion) completion(); return; }
   CGFloat y = [self.config.position isEqualToString:@"top"] ? -(CGRectGetMaxY(self.frame) + 8) : ([self.config.position isEqualToString:@"bottom"] ? CGRectGetMaxY(self.superview.bounds) - CGRectGetMinY(self.frame) + 8 : -12);
-  NSTimeInterval duration = [self.config.animation isEqualToString:@"slide"] ? 0.22 : 0.14;
-  [UIView animateWithDuration:duration delay:0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+  [UIView animateWithDuration:self.config.exitDuration delay:0 options:UIViewAnimationOptionCurveEaseIn | UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction animations:^{
     self.alpha = 0;
     if ([self.config.animation isEqualToString:@"slide"]) self.transform = CGAffineTransformMakeTranslation(0, y);
   } completion:^(__unused BOOL finished) { if (completion) completion(); }];
