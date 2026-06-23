@@ -12,9 +12,13 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		B152106371C3B316CFB21E38 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		C2D105FFB9C842E9A6AFF987 /* Karla-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 062B449980EE4A43870E4054 /* Karla-Italic.ttf */; };
+		F22AD76CD292425796DD5CF3 /* Karla-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0EB36D65A5204C46827BB5C6 /* Karla-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		062B449980EE4A43870E4054 /* Karla-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Karla-Italic.ttf"; path = "../assets/fonts/Karla-Italic.ttf"; sourceTree = "<group>"; };
+		0EB36D65A5204C46827BB5C6 /* Karla-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Karla-Bold.ttf"; path = "../assets/fonts/Karla-Bold.ttf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* SuperToastExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuperToastExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SuperToastExample/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SuperToastExample/Info.plist; sourceTree = "<group>"; };
@@ -51,6 +55,16 @@
 			name = SuperToastExample;
 			sourceTree = "<group>";
 		};
+		209C6862678C42989DDAB995 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				062B449980EE4A43870E4054 /* Karla-Italic.ttf */,
+				0EB36D65A5204C46827BB5C6 /* Karla-Bold.ttf */,
+			);
+			name = Resources;
+			path = "";
+			sourceTree = "<group>";
+		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -75,6 +89,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				209C6862678C42989DDAB995 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -161,6 +176,8 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				B152106371C3B316CFB21E38 /* PrivacyInfo.xcprivacy in Resources */,
+				C2D105FFB9C842E9A6AFF987 /* Karla-Italic.ttf in Resources */,
+				F22AD76CD292425796DD5CF3 /* Karla-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

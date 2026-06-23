@@ -40,7 +40,10 @@ export type ResolvedToast = Required<
     | 'stackOffset'
   >
 > &
-  Pick<NativeToastOptions, 'title' | 'message' | 'icon'> & {
+  Pick<
+    NativeToastOptions,
+    'title' | 'message' | 'icon' | 'titleFontFamily' | 'messageFontFamily'
+  > & {
     revision: number;
   };
 

@@ -25,6 +25,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.facebook.react.common.assets.ReactFontManager
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.abs
@@ -86,7 +87,7 @@ class NativeToastView(
         text = title
         textSize = config.titleSizeSp
         setTextColor(config.titleColor)
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = resolveTypeface(config.titleFontFamily, Typeface.BOLD)
         includeFontPadding = false
         maxLines = 2
       })
@@ -97,6 +98,7 @@ class NativeToastView(
         text = message
         textSize = config.messageSizeSp
         setTextColor(config.messageColor)
+        typeface = resolveTypeface(config.messageFontFamily, Typeface.NORMAL)
         includeFontPadding = true
         maxLines = 4
       }, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -105,6 +107,14 @@ class NativeToastView(
     }
 
     addView(texts, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+  }
+
+  private fun resolveTypeface(fontFamily: String?, style: Int): Typeface {
+    if (fontFamily.isNullOrBlank()) {
+      return if (style == Typeface.BOLD) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+    }
+
+    return ReactFontManager.getInstance().getTypeface(fontFamily, style, context.assets)
   }
 
   private fun createIconView(): View? {

@@ -60,6 +60,8 @@
 	<array>
 		<string>EvilIcons.ttf</string>
 		<string>fa-solid-900.ttf</string>
+		<string>Karla-Italic.ttf</string>
+		<string>Karla-Bold.ttf</string>
 	</array>
 </dict>
 </plist>

@@ -1,0 +1,13 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Karla-Bold.ttf",
+      "sha1": "c245d7154645d1791c428999cabdfb4a31a30975"
+    },
+    {
+      "path": "assets/fonts/Karla-Italic.ttf",
+      "sha1": "e04c25c85d26ae1dc90747e84e3c09195c7effb8"
+    }
+  ]
+}

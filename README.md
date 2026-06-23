@@ -53,6 +53,27 @@ const loadingId = SuperToast.loading({
 SuperToast.dismiss(loadingId);
 ```
 
+Use fonts bundled by the consuming app for the title and message:
+
+```tsx
+SuperToast.show({
+  title: 'Custom typography',
+  message: 'Title and message fonts can be configured independently.',
+  titleFontFamily: 'Inter',
+  messageFontFamily: 'Lora',
+});
+
+SuperToast.configure({
+  titleFontFamily: 'Inter',
+  messageFontFamily: 'Inter',
+});
+```
+
+The family names follow React Native's normal custom-font setup. On Android,
+font files linked into `assets/fonts` should use the family name as their file
+name (for example, `Inter.ttf` and optionally `Inter_bold.ttf`). On iOS, use
+the font family name registered by the app.
+
 Update a persistent toast in place to represent an async task:
 
 ```tsx

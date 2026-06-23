@@ -71,6 +71,10 @@ export type ToastOptions = {
   gap?: number;
   titleSize?: number;
   messageSize?: number;
+  /** Font family registered by the consuming app. */
+  titleFontFamily?: string;
+  /** Font family registered by the consuming app. */
+  messageFontFamily?: string;
   elevation?: number;
   shadowOpacity?: number;
   swipeToDismiss?: boolean;

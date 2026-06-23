@@ -440,7 +440,11 @@ function ToastCard({
                 numberOfLines={2}
                 style={[
                   styles.title,
-                  { color: toast.titleColor, fontSize: toast.titleSize },
+                  {
+                    color: toast.titleColor,
+                    fontFamily: toast.titleFontFamily,
+                    fontSize: toast.titleSize,
+                  },
                 ]}
               >
                 {toast.title}
@@ -454,6 +458,7 @@ function ToastCard({
                   styles.message,
                   {
                     color: toast.messageColor,
+                    fontFamily: toast.messageFontFamily,
                     fontSize: toast.messageSize,
                   },
                 ]}

@@ -90,6 +90,8 @@ function ToastActionsCard({
       backgroundColor: getBackgroundColor('default'),
       titleColor: '#FFFFFF',
       messageColor: '#CBD5E1',
+      titleFontFamily: 'Karla-Bold',
+      messageFontFamily: 'Karla-Italic',
     });
   }, [source]);
 
@@ -229,6 +231,8 @@ export default function App() {
       backgroundColor: getBackgroundColor('success'),
       titleColor: '#FFFFFF',
       messageColor: '#FFFFFF',
+      titleFontFamily: 'Karla-Bold',
+      messageFontFamily: 'Karla-Italic',
     });
   }
 
@@ -245,6 +249,8 @@ export default function App() {
       backgroundColor: getBackgroundColor('default'),
       titleColor: '#FFFFFF',
       messageColor: '#CBD5E1',
+      titleFontFamily: 'Karla-Bold',
+      messageFontFamily: 'Karla-Italic',
     });
   }
 
@@ -795,6 +801,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#4B5563',
     marginBottom: 12,
+    fontFamily: 'Karla-Italic',
   },
   card: {
     backgroundColor: '#FFFFFF',

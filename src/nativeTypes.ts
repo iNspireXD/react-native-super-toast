@@ -43,6 +43,8 @@ export type NativeToastOptions = {
   gap?: number;
   titleSize?: number;
   messageSize?: number;
+  titleFontFamily?: string;
+  messageFontFamily?: string;
   elevation?: number;
   shadowOpacity?: number;
   swipeToDismiss?: boolean;
