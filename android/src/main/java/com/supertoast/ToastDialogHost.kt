@@ -66,6 +66,7 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
 
   private var zOrderToken = 0
   private var lastRebumpAtUptimeMs = 0L
+  private var entryAnimationEndsAtUptimeMs = 0L
   private var pendingZOrderRunnable: Runnable? = null
   private var isRebumpingDialog = false
 
@@ -158,6 +159,8 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val container = createContainer(activity, toast, config)
     val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
     val animateEdgeSlide = config.animation == "slide"
+
+    markEntryAnimationInProgress(config)
 
     try {
       nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -435,6 +438,10 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     val nextDialog = Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar)
     val animateEdgeSlide =
       animate && config.animation == "slide" && config.position != "center"
+
+    if (animate) {
+      markEntryAnimationInProgress(config)
+    }
 
     try {
       nextDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -745,7 +752,25 @@ class ToastDialogHost(private val reactContext: ReactApplicationContext) : Lifec
     }
 
     pendingZOrderRunnable = runnable
-    mainHandler.postDelayed(runnable, REBUMP_DELAY_MS)
+    val entryAnimationRemainingMs =
+      entryAnimationEndsAtUptimeMs - SystemClock.uptimeMillis()
+    val delayMs = maxOf(REBUMP_DELAY_MS, entryAnimationRemainingMs)
+    mainHandler.postDelayed(runnable, delayMs)
+  }
+
+  /**
+   * Showing our non-focusable dialog can itself produce the Activity focus-loss
+   * signal used for z-order maintenance. Do not replace the newly attached
+   * dialog while its entrance is still running: replacement dialogs represent
+   * an already-visible toast and would make that animation jump to its end.
+   */
+  private fun markEntryAnimationInProgress(config: ToastConfig) {
+    if (config.animation == "none" || config.enterDurationMs <= 0L) return
+
+    entryAnimationEndsAtUptimeMs = maxOf(
+      entryAnimationEndsAtUptimeMs,
+      SystemClock.uptimeMillis() + config.enterDurationMs,
+    )
   }
 
   private fun cancelPendingZOrderMaintenance() {
