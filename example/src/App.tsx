@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ElementRef, ReactNode } from 'react';
 import {
   Modal,
@@ -9,6 +16,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  useColorScheme,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -160,15 +168,18 @@ function SettingToggle({
   );
 }
 
-function useToastDemos(source: string) {
+// Image icons are not themed natively, so tint them to match the toast theme.
+const IconColorContext = createContext<string>(COLORS.ink);
+
+function useToastDemos(source: string, iconColor: string) {
   const lastId = useRef<ToastId | null>(null);
   const bellIcon = useMemo(
     () =>
       FontAwesomeFreeSolid.getImageSourceSync('bell', {
         size: 20,
-        color: COLORS.ink,
+        color: iconColor,
       }),
-    []
+    [iconColor]
   );
 
   const remember = (id: ToastId) => {
@@ -241,7 +252,7 @@ function useToastDemos(source: string) {
             type: 'image',
             source: require('../assets/shopping-cart.png'),
             size: 20,
-            tintColor: COLORS.ink,
+            tintColor: iconColor,
           },
         })
       ),
@@ -273,7 +284,7 @@ function ToastActionsCard({
   onOpenNested?: () => void;
   exampleCount?: number;
 }) {
-  const demos = useToastDemos(source);
+  const demos = useToastDemos(source, useContext(IconColorContext));
   const examples = [
     { label: 'Success', onPress: demos.success },
     { label: 'With action', onPress: demos.action },
@@ -307,6 +318,10 @@ export default function App() {
   const [closeButton, setCloseButton] = useState(false);
   const [enableStacking, setEnableStacking] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const systemScheme = useColorScheme();
+  const darkToasts =
+    theme === 'dark' || (theme === 'system' && systemScheme === 'dark');
+  const iconColor = darkToasts ? COLORS.white : COLORS.ink;
 
   const [pageSheetModalVisible, setPageSheetModalVisible] = useState(false);
   const [transparentModalVisible, setTransparentModalVisible] = useState(false);
@@ -315,7 +330,7 @@ export default function App() {
   const nestedModalRef = useRef<BottomSheetModal>(null);
   const thirdModalRef = useRef<BottomSheetModal>(null);
 
-  const demos = useToastDemos('main screen');
+  const demos = useToastDemos('main screen', iconColor);
 
   const showBurst = useCallback(() => {
     [
@@ -336,360 +351,368 @@ export default function App() {
   );
 
   return (
-    <SafeAreaProvider style={styles.root}>
-      <GestureHandlerRootView style={styles.root}>
-        <StatusBar barStyle="dark-content" />
-        <BottomSheetModalProvider>
-          <SafeAreaView style={styles.root}>
-            <ScrollView
-              contentContainerStyle={styles.content}
-              showsVerticalScrollIndicator={false}
-            >
-              <PageHeader
-                title="Super Toast"
-                subtitle="Tap an example to preview."
-              />
+    <IconColorContext.Provider value={iconColor}>
+      <SafeAreaProvider style={styles.root}>
+        <GestureHandlerRootView style={styles.root}>
+          <StatusBar barStyle="dark-content" />
+          <BottomSheetModalProvider>
+            <SafeAreaView style={styles.root}>
+              <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+              >
+                <PageHeader
+                  title="Super Toast"
+                  subtitle="Tap an example to preview."
+                />
 
-              <Section title="Variants">
-                <ActionButton onPress={demos.plain}>Default</ActionButton>
-                <ActionButton onPress={demos.description}>
-                  With description
-                </ActionButton>
-                <ActionButton onPress={demos.success}>Success</ActionButton>
-                <ActionButton onPress={demos.error}>Error</ActionButton>
-                <ActionButton onPress={demos.warning}>Warning</ActionButton>
-                <ActionButton onPress={demos.info}>Info</ActionButton>
-                <ActionButton onPress={demos.loading}>Loading</ActionButton>
-              </Section>
+                <Section title="Variants">
+                  <ActionButton onPress={demos.plain}>Default</ActionButton>
+                  <ActionButton onPress={demos.description}>
+                    With description
+                  </ActionButton>
+                  <ActionButton onPress={demos.success}>Success</ActionButton>
+                  <ActionButton onPress={demos.error}>Error</ActionButton>
+                  <ActionButton onPress={demos.warning}>Warning</ActionButton>
+                  <ActionButton onPress={demos.info}>Info</ActionButton>
+                  <ActionButton onPress={demos.loading}>Loading</ActionButton>
+                </Section>
 
-              <Section title="Interactions">
-                <ActionButton onPress={demos.action}>Action</ActionButton>
-                <ActionButton onPress={demos.confirm}>
-                  Action + cancel
-                </ActionButton>
-                <ActionButton onPress={() => demos.promise(false)}>
-                  Promise success
-                </ActionButton>
-                <ActionButton onPress={() => demos.promise(true)}>
-                  Promise failure
-                </ActionButton>
-                <ActionButton onPress={demos.wiggle}>
-                  Wiggle last toast
-                </ActionButton>
-                <ActionButton onPress={showBurst}>
-                  Show three toasts
-                </ActionButton>
-              </Section>
+                <Section title="Interactions">
+                  <ActionButton onPress={demos.action}>Action</ActionButton>
+                  <ActionButton onPress={demos.confirm}>
+                    Action + cancel
+                  </ActionButton>
+                  <ActionButton onPress={() => demos.promise(false)}>
+                    Promise success
+                  </ActionButton>
+                  <ActionButton onPress={() => demos.promise(true)}>
+                    Promise failure
+                  </ActionButton>
+                  <ActionButton onPress={demos.wiggle}>
+                    Wiggle last toast
+                  </ActionButton>
+                  <ActionButton onPress={showBurst}>
+                    Show three toasts
+                  </ActionButton>
+                </Section>
 
-              <Section title="Icons & styles">
-                <ActionButton onPress={demos.pngIcon}>PNG icon</ActionButton>
-                <ActionButton onPress={demos.icon}>Vector icon</ActionButton>
-                <ActionButton onPress={demos.styled}>
-                  Custom styles
-                </ActionButton>
-              </Section>
+                <Section title="Icons & styles">
+                  <ActionButton onPress={demos.pngIcon}>PNG icon</ActionButton>
+                  <ActionButton onPress={demos.icon}>Vector icon</ActionButton>
+                  <ActionButton onPress={demos.styled}>
+                    Custom styles
+                  </ActionButton>
+                </Section>
 
-              <Section title="Native modals">
-                <ActionButton onPress={() => setPageSheetModalVisible(true)}>
-                  Open page sheet
-                </ActionButton>
-                <ActionButton onPress={() => setTransparentModalVisible(true)}>
-                  Open transparent modal
-                </ActionButton>
-              </Section>
+                <Section title="Native modals">
+                  <ActionButton onPress={() => setPageSheetModalVisible(true)}>
+                    Open page sheet
+                  </ActionButton>
+                  <ActionButton
+                    onPress={() => setTransparentModalVisible(true)}
+                  >
+                    Open transparent modal
+                  </ActionButton>
+                </Section>
 
-              <Section title="Bottom sheets">
-                <ActionButton
-                  onPress={() => regularSheetRef.current?.snapToIndex(0)}
+                <Section title="Bottom sheets">
+                  <ActionButton
+                    onPress={() => regularSheetRef.current?.snapToIndex(0)}
+                  >
+                    Open regular sheet
+                  </ActionButton>
+                  <ActionButton
+                    onPress={() => parentModalRef.current?.present()}
+                  >
+                    Open sheet modal
+                  </ActionButton>
+                </Section>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss all toasts"
+                  onPress={() => toast.dismiss()}
+                  style={({ pressed }) => [
+                    styles.dismissAll,
+                    pressed && styles.buttonPressed,
+                  ]}
                 >
-                  Open regular sheet
-                </ActionButton>
-                <ActionButton onPress={() => parentModalRef.current?.present()}>
-                  Open sheet modal
-                </ActionButton>
-              </Section>
+                  <Text style={styles.dismissAllText}>Dismiss all</Text>
+                  <Text style={styles.dismissAllIcon}>×</Text>
+                </Pressable>
+              </ScrollView>
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Dismiss all toasts"
-                onPress={() => toast.dismiss()}
+                accessibilityLabel="Open toast settings"
+                onPress={() => setSettingsVisible(true)}
                 style={({ pressed }) => [
-                  styles.dismissAll,
+                  styles.settingsButton,
                   pressed && styles.buttonPressed,
                 ]}
               >
-                <Text style={styles.dismissAllText}>Dismiss all</Text>
-                <Text style={styles.dismissAllIcon}>×</Text>
+                <Text style={styles.settingsIcon}>⚙</Text>
+                <Text style={styles.settingsButtonText}>Settings</Text>
               </Pressable>
-            </ScrollView>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open toast settings"
-              onPress={() => setSettingsVisible(true)}
-              style={({ pressed }) => [
-                styles.settingsButton,
-                pressed && styles.buttonPressed,
-              ]}
-            >
-              <Text style={styles.settingsIcon}>⚙</Text>
-              <Text style={styles.settingsButtonText}>Settings</Text>
-            </Pressable>
-
-            <Modal
-              visible={settingsVisible}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setSettingsVisible(false)}
-            >
-              <GestureHandlerRootView style={styles.settingsOverlay}>
-                <SafeAreaProvider style={styles.settingsOverlay}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Close toast settings"
-                    onPress={() => setSettingsVisible(false)}
-                    style={styles.settingsBackdrop}
-                  />
-                  <SafeAreaView
-                    edges={['bottom']}
-                    style={[
-                      styles.settingsPanel,
-                      { maxHeight: windowHeight * 0.78 },
-                    ]}
-                  >
-                    <View style={styles.settingsHeader}>
-                      <Text style={styles.settingsTitle}>Settings</Text>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel="Close toast settings"
-                        onPress={() => setSettingsVisible(false)}
-                        style={styles.settingsClose}
-                      >
-                        <Text style={styles.settingsCloseText}>×</Text>
-                      </Pressable>
-                    </View>
-                    <ScrollView
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={styles.settingsContent}
+              <Modal
+                visible={settingsVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSettingsVisible(false)}
+              >
+                <GestureHandlerRootView style={styles.settingsOverlay}>
+                  <SafeAreaProvider style={styles.settingsOverlay}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Close toast settings"
+                      onPress={() => setSettingsVisible(false)}
+                      style={styles.settingsBackdrop}
+                    />
+                    <SafeAreaView
+                      edges={['bottom']}
+                      style={[
+                        styles.settingsPanel,
+                        { maxHeight: windowHeight * 0.78 },
+                      ]}
                     >
-                      <SettingChoice
-                        label="Position"
-                        values={POSITIONS}
-                        value={position}
-                        onChange={setPosition}
-                      />
-                      <SettingChoice
-                        label="Theme"
-                        values={THEMES}
-                        value={theme}
-                        onChange={setTheme}
-                      />
-                      <SettingChoice
-                        label="Swipe direction"
-                        values={SWIPE_DIRECTIONS}
-                        value={swipeDirection}
-                        onChange={setSwipeDirection}
-                      />
-                      <SettingToggle
-                        label="Rich colors"
-                        value={richColors}
-                        onChange={setRichColors}
-                      />
-                      <SettingToggle
-                        label="Close button"
-                        value={closeButton}
-                        onChange={setCloseButton}
-                      />
-                      <SettingToggle
-                        label="Stacking"
-                        value={enableStacking}
-                        onChange={setEnableStacking}
-                      />
-                    </ScrollView>
-                  </SafeAreaView>
-                </SafeAreaProvider>
-              </GestureHandlerRootView>
-            </Modal>
+                      <View style={styles.settingsHeader}>
+                        <Text style={styles.settingsTitle}>Settings</Text>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Close toast settings"
+                          onPress={() => setSettingsVisible(false)}
+                          style={styles.settingsClose}
+                        >
+                          <Text style={styles.settingsCloseText}>×</Text>
+                        </Pressable>
+                      </View>
+                      <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.settingsContent}
+                      >
+                        <SettingChoice
+                          label="Position"
+                          values={POSITIONS}
+                          value={position}
+                          onChange={setPosition}
+                        />
+                        <SettingChoice
+                          label="Theme"
+                          values={THEMES}
+                          value={theme}
+                          onChange={setTheme}
+                        />
+                        <SettingChoice
+                          label="Swipe direction"
+                          values={SWIPE_DIRECTIONS}
+                          value={swipeDirection}
+                          onChange={setSwipeDirection}
+                        />
+                        <SettingToggle
+                          label="Rich colors"
+                          value={richColors}
+                          onChange={setRichColors}
+                        />
+                        <SettingToggle
+                          label="Close button"
+                          value={closeButton}
+                          onChange={setCloseButton}
+                        />
+                        <SettingToggle
+                          label="Stacking"
+                          value={enableStacking}
+                          onChange={setEnableStacking}
+                        />
+                      </ScrollView>
+                    </SafeAreaView>
+                  </SafeAreaProvider>
+                </GestureHandlerRootView>
+              </Modal>
 
-            <Modal
-              visible={pageSheetModalVisible}
-              animationType="slide"
-              presentationStyle="pageSheet"
-              onRequestClose={() => setPageSheetModalVisible(false)}
-            >
-              <GestureHandlerRootView style={styles.modalRoot}>
-                <SafeAreaProvider style={styles.modalRoot}>
-                  <SafeAreaView style={styles.modalRoot}>
-                    <ScrollView contentContainerStyle={styles.content}>
-                      <PageHeader
-                        title="Page sheet"
-                        subtitle="Toast above a native modal."
-                      />
-                      <ToastActionsCard source="Page sheet" />
+              <Modal
+                visible={pageSheetModalVisible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setPageSheetModalVisible(false)}
+              >
+                <GestureHandlerRootView style={styles.modalRoot}>
+                  <SafeAreaProvider style={styles.modalRoot}>
+                    <SafeAreaView style={styles.modalRoot}>
+                      <ScrollView contentContainerStyle={styles.content}>
+                        <PageHeader
+                          title="Page sheet"
+                          subtitle="Toast above a native modal."
+                        />
+                        <ToastActionsCard source="Page sheet" />
+                        <ActionButton
+                          onPress={() => setPageSheetModalVisible(false)}
+                          tone="dark"
+                        >
+                          Close page sheet
+                        </ActionButton>
+                      </ScrollView>
+                    </SafeAreaView>
+                  </SafeAreaProvider>
+                </GestureHandlerRootView>
+              </Modal>
+
+              <Modal
+                visible={transparentModalVisible}
+                animationType="fade"
+                transparent
+                statusBarTranslucent
+                onRequestClose={() => setTransparentModalVisible(false)}
+              >
+                <GestureHandlerRootView style={styles.transparentBackdrop}>
+                  <View style={styles.transparentModalCard}>
+                    <PageHeader
+                      title="Transparent modal"
+                      subtitle="Toast above a transparent modal."
+                    />
+                    <View style={styles.actionList}>
+                      <ActionButton onPress={demos.success}>
+                        Success
+                      </ActionButton>
+                      <ActionButton onPress={demos.confirm}>
+                        Action + cancel
+                      </ActionButton>
+                      <ActionButton onPress={() => demos.promise(false)}>
+                        Promise
+                      </ActionButton>
                       <ActionButton
-                        onPress={() => setPageSheetModalVisible(false)}
+                        onPress={() => setTransparentModalVisible(false)}
                         tone="dark"
                       >
-                        Close page sheet
+                        Close modal
                       </ActionButton>
-                    </ScrollView>
-                  </SafeAreaView>
-                </SafeAreaProvider>
-              </GestureHandlerRootView>
-            </Modal>
-
-            <Modal
-              visible={transparentModalVisible}
-              animationType="fade"
-              transparent
-              statusBarTranslucent
-              onRequestClose={() => setTransparentModalVisible(false)}
-            >
-              <GestureHandlerRootView style={styles.transparentBackdrop}>
-                <View style={styles.transparentModalCard}>
-                  <PageHeader
-                    title="Transparent modal"
-                    subtitle="Toast above a transparent modal."
-                  />
-                  <View style={styles.actionList}>
-                    <ActionButton onPress={demos.success}>Success</ActionButton>
-                    <ActionButton onPress={demos.confirm}>
-                      Action + cancel
-                    </ActionButton>
-                    <ActionButton onPress={() => demos.promise(false)}>
-                      Promise
-                    </ActionButton>
-                    <ActionButton
-                      onPress={() => setTransparentModalVisible(false)}
-                      tone="dark"
-                    >
-                      Close modal
-                    </ActionButton>
+                    </View>
                   </View>
-                </View>
-              </GestureHandlerRootView>
-            </Modal>
+                </GestureHandlerRootView>
+              </Modal>
 
-            {/* A closed Android backdrop can intercept touches after RN Modals close. */}
-            <BottomSheet
-              ref={regularSheetRef}
-              index={-1}
-              enablePanDownToClose
-              backdropComponent={
-                Platform.OS === 'android' ? undefined : renderBackdrop
-              }
-              backgroundStyle={styles.sheetBackground}
-              handleIndicatorStyle={styles.sheetHandle}
-            >
-              <BottomSheetScrollView
-                contentContainerStyle={styles.sheetContent}
+              {/* A closed Android backdrop can intercept touches after RN Modals close. */}
+              <BottomSheet
+                ref={regularSheetRef}
+                index={-1}
+                enablePanDownToClose
+                backdropComponent={
+                  Platform.OS === 'android' ? undefined : renderBackdrop
+                }
+                backgroundStyle={styles.sheetBackground}
+                handleIndicatorStyle={styles.sheetHandle}
               >
-                <PageHeader title="Bottom sheet" />
-                <ToastActionsCard
-                  source="Regular bottom sheet"
-                  onOpenNested={() => parentModalRef.current?.present()}
-                />
-                <ActionButton
-                  onPress={() => regularSheetRef.current?.close()}
-                  tone="dark"
+                <BottomSheetScrollView
+                  contentContainerStyle={styles.sheetContent}
                 >
-                  Close sheet
-                </ActionButton>
-              </BottomSheetScrollView>
-            </BottomSheet>
+                  <PageHeader title="Bottom sheet" />
+                  <ToastActionsCard
+                    source="Regular bottom sheet"
+                    onOpenNested={() => parentModalRef.current?.present()}
+                  />
+                  <ActionButton
+                    onPress={() => regularSheetRef.current?.close()}
+                    tone="dark"
+                  >
+                    Close sheet
+                  </ActionButton>
+                </BottomSheetScrollView>
+              </BottomSheet>
 
-            <BottomSheetModal
-              ref={parentModalRef}
-              stackBehavior="push"
-              index={0}
-              enablePanDownToClose
-              backdropComponent={renderBackdrop}
-              backgroundStyle={styles.sheetBackground}
-              handleIndicatorStyle={styles.sheetHandle}
-            >
-              <BottomSheetScrollView
-                contentContainerStyle={styles.sheetContent}
+              <BottomSheetModal
+                ref={parentModalRef}
+                stackBehavior="push"
+                index={0}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={styles.sheetBackground}
+                handleIndicatorStyle={styles.sheetHandle}
               >
-                <PageHeader title="Sheet modal" />
-                <ToastActionsCard
-                  source="Parent sheet modal"
-                  exampleCount={3}
-                  onOpenNested={() => nestedModalRef.current?.present()}
-                />
-                <ActionButton
-                  onPress={() => parentModalRef.current?.dismiss()}
-                  tone="dark"
+                <BottomSheetScrollView
+                  contentContainerStyle={styles.sheetContent}
                 >
-                  Close parent sheet
-                </ActionButton>
-              </BottomSheetScrollView>
-            </BottomSheetModal>
+                  <PageHeader title="Sheet modal" />
+                  <ToastActionsCard
+                    source="Parent sheet modal"
+                    exampleCount={3}
+                    onOpenNested={() => nestedModalRef.current?.present()}
+                  />
+                  <ActionButton
+                    onPress={() => parentModalRef.current?.dismiss()}
+                    tone="dark"
+                  >
+                    Close parent sheet
+                  </ActionButton>
+                </BottomSheetScrollView>
+              </BottomSheetModal>
 
-            <BottomSheetModal
-              ref={nestedModalRef}
-              stackBehavior="push"
-              index={0}
-              enablePanDownToClose
-              backdropComponent={renderBackdrop}
-              backgroundStyle={styles.sheetBackground}
-              handleIndicatorStyle={styles.sheetHandle}
-            >
-              <BottomSheetScrollView
-                contentContainerStyle={styles.sheetContent}
+              <BottomSheetModal
+                ref={nestedModalRef}
+                stackBehavior="push"
+                index={0}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={styles.sheetBackground}
+                handleIndicatorStyle={styles.sheetHandle}
               >
-                <PageHeader title="Nested sheet" />
-                <ToastActionsCard
-                  source="Nested sheet modal"
-                  exampleCount={2}
-                  onOpenNested={() => thirdModalRef.current?.present()}
-                />
-                <ActionButton
-                  onPress={() => nestedModalRef.current?.dismiss()}
-                  tone="dark"
+                <BottomSheetScrollView
+                  contentContainerStyle={styles.sheetContent}
                 >
-                  Close nested sheet
-                </ActionButton>
-              </BottomSheetScrollView>
-            </BottomSheetModal>
+                  <PageHeader title="Nested sheet" />
+                  <ToastActionsCard
+                    source="Nested sheet modal"
+                    exampleCount={2}
+                    onOpenNested={() => thirdModalRef.current?.present()}
+                  />
+                  <ActionButton
+                    onPress={() => nestedModalRef.current?.dismiss()}
+                    tone="dark"
+                  >
+                    Close nested sheet
+                  </ActionButton>
+                </BottomSheetScrollView>
+              </BottomSheetModal>
 
-            <BottomSheetModal
-              ref={thirdModalRef}
-              stackBehavior="push"
-              index={0}
-              enablePanDownToClose
-              backdropComponent={renderBackdrop}
-              backgroundStyle={styles.sheetBackground}
-              handleIndicatorStyle={styles.sheetHandle}
-            >
-              <BottomSheetScrollView
-                contentContainerStyle={styles.sheetContent}
+              <BottomSheetModal
+                ref={thirdModalRef}
+                stackBehavior="push"
+                index={0}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={styles.sheetBackground}
+                handleIndicatorStyle={styles.sheetHandle}
               >
-                <PageHeader title="Third sheet" />
-                <ToastActionsCard
-                  source="Triple-nested sheet"
-                  exampleCount={2}
-                />
-                <ActionButton
-                  onPress={() => thirdModalRef.current?.dismiss()}
-                  tone="dark"
+                <BottomSheetScrollView
+                  contentContainerStyle={styles.sheetContent}
                 >
-                  Close final sheet
-                </ActionButton>
-              </BottomSheetScrollView>
-            </BottomSheetModal>
+                  <PageHeader title="Third sheet" />
+                  <ToastActionsCard
+                    source="Triple-nested sheet"
+                    exampleCount={2}
+                  />
+                  <ActionButton
+                    onPress={() => thirdModalRef.current?.dismiss()}
+                    tone="dark"
+                  >
+                    Close final sheet
+                  </ActionButton>
+                </BottomSheetScrollView>
+              </BottomSheetModal>
 
-            <Toaster
-              position={position}
-              theme={theme}
-              richColors={richColors}
-              closeButton={closeButton}
-              enableStacking={enableStacking}
-              swipeToDismissDirection={swipeDirection}
-            />
-          </SafeAreaView>
-        </BottomSheetModalProvider>
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+              <Toaster
+                position={position}
+                theme={theme}
+                richColors={richColors}
+                closeButton={closeButton}
+                enableStacking={enableStacking}
+                swipeToDismissDirection={swipeDirection}
+              />
+            </SafeAreaView>
+          </BottomSheetModalProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </IconColorContext.Provider>
   );
 }
 
