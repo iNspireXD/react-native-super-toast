@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ElementRef, ReactNode } from 'react';
 import {
   Modal,
-  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,8 +10,13 @@ import {
   View,
 } from 'react-native';
 
-import SuperToast, { SuperToastHost } from 'react-native-super-toast';
-import type { ToastKind, ToastOptions } from 'react-native-super-toast';
+import { toast, Toaster } from 'react-native-super-toast';
+import type {
+  ToastId,
+  ToastPosition,
+  ToastSwipeDirection,
+  ToastTheme,
+} from 'react-native-super-toast';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -30,50 +34,27 @@ const COLORS = {
   muted: '#686868',
   line: '#DEDEDA',
   soft: '#F0F0EC',
-  inverseMuted: '#C8C8C3',
 } as const;
 
-const TOAST_COLORS: Record<ToastKind, string> = {
-  default: '#171717',
-  success: '#18794E',
-  error: '#B42318',
-  warning: '#A15C00',
-  info: '#2457A7',
-  loading: '#3F3F46',
-};
+const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
+const THEMES: ToastTheme[] = ['system', 'light', 'dark'];
+const SWIPE_DIRECTIONS: ToastSwipeDirection[] = ['up', 'left'];
 
-function getToastStyle(
-  kind: ToastKind
-): Pick<
-  ToastOptions,
-  | 'backgroundColor'
-  | 'titleColor'
-  | 'messageColor'
-  | 'iconColor'
-  | 'borderColor'
-  | 'borderWidth'
-  | 'titleFontFamily'
-  | 'messageFontFamily'
-> {
-  return {
-    backgroundColor: TOAST_COLORS[kind],
-    titleColor: COLORS.white,
-    messageColor: '#F1F1ED',
-    iconColor: COLORS.white,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    titleFontFamily: 'Karla-Bold',
-    messageFontFamily: 'Karla-Italic',
-  };
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function next<T>(values: T[], current: T): T {
+  return values[(values.indexOf(current) + 1) % values.length]!;
 }
 
 function ActionButton({
   children,
   onPress,
+  value,
   tone = 'light',
 }: {
   children: ReactNode;
   onPress: () => void;
+  value?: string;
   tone?: 'light' | 'dark' | 'quiet';
 }) {
   return (
@@ -93,9 +74,9 @@ function ActionButton({
         {children}
       </Text>
       <Text
-        style={[styles.buttonArrow, tone === 'dark' && styles.buttonLabelDark]}
+        style={[styles.buttonValue, tone === 'dark' && styles.buttonLabelDark]}
       >
-        ↗
+        {value ?? '↗'}
       </Text>
     </Pressable>
   );
@@ -138,13 +119,118 @@ function PageIntro({
         </View>
         <Text style={styles.wordmark}>SUPER TOAST</Text>
         <View style={styles.rule} />
-        <Text style={styles.version}>DEMO / 01</Text>
+        <Text style={styles.version}>DEMO / 02</Text>
       </View>
       <Text style={styles.kicker}>{label}</Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{copy}</Text>
     </View>
   );
+}
+
+function useToastDemos(source: string) {
+  const lastId = useRef<ToastId | null>(null);
+  const bellIcon = useMemo(
+    () =>
+      FontAwesomeFreeSolid.getImageSourceSync('bell', {
+        size: 20,
+        color: COLORS.ink,
+      }),
+    []
+  );
+
+  const remember = (id: ToastId) => {
+    lastId.current = id;
+    return id;
+  };
+
+  return {
+    plain: () => remember(toast('Event has been created')),
+    description: () =>
+      remember(
+        toast('Event has been created', {
+          description: `Monday, January 3rd at 6:00pm · ${source}`,
+        })
+      ),
+    success: () =>
+      remember(toast.success('Changes saved', { description: source })),
+    error: () =>
+      remember(toast.error('Could not reach the server', { haptic: true })),
+    warning: () =>
+      remember(toast.warning('Storage almost full', { description: '92%' })),
+    info: () =>
+      remember(toast.info('New version available', { closeButton: true })),
+    action: () =>
+      remember(
+        toast('Message archived', {
+          action: {
+            label: 'Undo',
+            onClick: () => toast.success('Message restored'),
+          },
+        })
+      ),
+    confirm: () =>
+      remember(
+        toast('Delete 3 files?', {
+          description: 'This cannot be undone.',
+          duration: Infinity,
+          action: {
+            label: 'Delete',
+            onClick: () => toast.success('Files deleted'),
+          },
+          cancel: { label: 'Keep', onClick: () => {} },
+          onDismiss: () => toast.info('Kept your files'),
+        })
+      ),
+    promise: (shouldFail: boolean) =>
+      remember(
+        toast.promise(
+          wait(2000).then(() => {
+            if (shouldFail) throw new Error('Upload rejected');
+            return 'report.pdf';
+          }),
+          {
+            loading: 'Uploading…',
+            success: (file) => `${file} uploaded`,
+            error: (reason) => (reason as Error).message,
+          }
+        )
+      ),
+    icon: () =>
+      remember(
+        toast('New message', {
+          description: `A notification from ${source}.`,
+          icon: { type: 'image', source: bellIcon, size: 20 },
+        })
+      ),
+    pngIcon: () =>
+      remember(
+        toast('Added to cart', {
+          description: 'Super Toast T-Shirt is in your cart.',
+          icon: {
+            type: 'image',
+            source: require('../assets/shopping-cart.png'),
+            size: 20,
+            tintColor: COLORS.ink,
+          },
+        })
+      ),
+    styled: () =>
+      remember(
+        toast.success('Custom typography', {
+          description: 'Fonts, colors, and radius come from styles.',
+          style: { backgroundColor: COLORS.ink, borderRadius: 10 },
+          styles: {
+            title: { color: COLORS.white, fontFamily: 'Karla-Bold' },
+            description: { color: '#C8C8C3', fontFamily: 'Karla-Italic' },
+            icon: { color: '#7EE2A8' },
+          },
+        })
+      ),
+    wiggle: () => {
+      if (lastId.current !== null) toast.wiggle(lastId.current);
+    },
+  };
 }
 
 function ToastActionsCard({
@@ -156,81 +242,14 @@ function ToastActionsCard({
   onOpenNested?: () => void;
   onOpenModalInside?: () => void;
 }) {
-  const loadingToastId = useRef<string | null>(null);
-
-  const showFontIcon = useCallback(() => {
-    const sourceIcon = FontAwesomeFreeSolid.getImageSourceSync('bell', {
-      size: 22,
-      color: COLORS.white,
-    });
-    SuperToast.show({
-      ...getToastStyle('info'),
-      title: 'New message',
-      message: `A notification from ${source}.`,
-      icon: { type: 'image', source: sourceIcon, size: 22 },
-    });
-  }, [source]);
-
-  const showLoading = () => {
-    if (loadingToastId.current) return;
-    loadingToastId.current = SuperToast.loading({
-      ...getToastStyle('loading'),
-      title: 'Uploading',
-      message: `Persistent toast from ${source}.`,
-      duration: 0,
-      closeOnPress: false,
-      swipeToDismiss: false,
-    });
-  };
-
-  const dismissLoading = () => {
-    if (!loadingToastId.current) return;
-    SuperToast.dismiss(loadingToastId.current);
-    loadingToastId.current = null;
-    SuperToast.success({
-      ...getToastStyle('success'),
-      title: 'All done',
-      message: 'Loading toast dismissed.',
-      icon: '✓',
-    });
-  };
+  const demos = useToastDemos(source);
 
   return (
     <Section index="TOAST LAB" title={source}>
-      <ActionButton
-        onPress={() =>
-          SuperToast.success({
-            ...getToastStyle('success'),
-            title: 'Synced',
-            message: `Data synced from ${source}.`,
-            icon: '✓',
-          })
-        }
-      >
-        Text icon
-      </ActionButton>
-      <ActionButton
-        onPress={() =>
-          SuperToast.show({
-            ...getToastStyle('default'),
-            title: 'Added to cart',
-            message: 'Super Toast T-Shirt is in your cart.',
-            icon: {
-              type: 'image',
-              source: require('../assets/shopping-cart.png'),
-              size: 22,
-              tintColor: COLORS.white,
-            },
-          })
-        }
-      >
-        PNG icon
-      </ActionButton>
-      <ActionButton onPress={showFontIcon}>Vector icon</ActionButton>
-      <ActionButton onPress={showLoading}>Persistent loading</ActionButton>
-      <ActionButton onPress={dismissLoading} tone="quiet">
-        Dismiss loading
-      </ActionButton>
+      <ActionButton onPress={demos.success}>Success</ActionButton>
+      <ActionButton onPress={demos.action}>With action</ActionButton>
+      <ActionButton onPress={() => demos.promise(false)}>Promise</ActionButton>
+      <ActionButton onPress={demos.icon}>Vector icon</ActionButton>
       {onOpenNested ? (
         <ActionButton onPress={onOpenNested} tone="dark">
           Open nested sheet
@@ -246,10 +265,17 @@ function ToastActionsCard({
 }
 
 export default function App() {
+  const [position, setPosition] = useState<ToastPosition>('top-center');
+  const [theme, setTheme] = useState<ToastTheme>('system');
+  const [swipeDirection, setSwipeDirection] =
+    useState<ToastSwipeDirection>('up');
+  const [richColors, setRichColors] = useState(false);
+  const [closeButton, setCloseButton] = useState(false);
+  const [enableStacking, setEnableStacking] = useState(false);
+
   const [pageSheetModalVisible, setPageSheetModalVisible] = useState(false);
   const [transparentModalVisible, setTransparentModalVisible] = useState(false);
   const [rnModalOverSheetVisible, setRnModalOverSheetVisible] = useState(false);
-  const loadingToastId = useRef<string | null>(null);
   const regularSheetRef = useRef<ElementRef<typeof BottomSheet>>(null);
   const parentModalRef = useRef<BottomSheetModal>(null);
   const nestedModalRef = useRef<BottomSheetModal>(null);
@@ -257,146 +283,15 @@ export default function App() {
   const regularSheetSnapPoints = useMemo(() => ['45%', '85%'], []);
   const modalSnapPoints = useMemo(() => ['55%', '90%'], []);
 
-  const bellIconSource = useMemo(
-    () =>
-      FontAwesomeFreeSolid.getImageSourceSync('bell', {
-        size: 22,
-        color: COLORS.white,
-      }),
-    []
-  );
+  const demos = useToastDemos('main screen');
 
-  useEffect(() => {
-    SuperToast.configure({
-      ...getToastStyle('default'),
-      position: 'top',
-      duration: 3000,
-      animation: 'slide',
-      enterDuration: 420,
-      exitDuration: 220,
-      widthMode: 'screen',
-      topOffset: Platform.OS === 'ios' ? 8 : 54,
-      bottomOffset: Platform.OS === 'ios' ? 24 : 64,
-      horizontalMargin: 16,
-      maxWidth: 360,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      gap: 11,
-      titleSize: 15,
-      messageSize: 13,
-      elevation: 6,
-      shadowOpacity: 0.16,
-      swipeToDismiss: false,
-      closeOnPress: true,
-      queue: false,
-      stack: true,
-      stackLimit: 3,
-      stackOffset: 9,
-      haptic: false,
-    });
-  }, []);
-
-  const showTextIcon = (source: string) =>
-    SuperToast.success({
-      ...getToastStyle('success'),
-      title: 'Synced',
-      message: `Data synced from ${source}.`,
-      icon: '✓',
-    });
-  const showPngIcon = () =>
-    SuperToast.show({
-      ...getToastStyle('default'),
-      title: 'Added to cart',
-      message: 'Super Toast T-Shirt is in your cart.',
-      icon: {
-        type: 'image',
-        source: require('../assets/shopping-cart.png'),
-        size: 22,
-        tintColor: COLORS.white,
-      },
-    });
-  const showFontIcon = (source: string) =>
-    SuperToast.show({
-      ...getToastStyle('info'),
-      title: 'New message',
-      message: `A notification from ${source}.`,
-      icon: { type: 'image', source: bellIconSource, size: 22 },
-    });
-
-  function showLoadingIcon(source: string) {
-    if (loadingToastId.current) return;
-    loadingToastId.current = SuperToast.loading({
-      ...getToastStyle('loading'),
-      title: 'Uploading',
-      message: `Persistent toast from ${source}.`,
-      duration: 0,
-      closeOnPress: false,
-      swipeToDismiss: false,
-    });
-  }
-
-  function dismissLoadingIcon() {
-    if (!loadingToastId.current) return;
-    SuperToast.dismiss(loadingToastId.current);
-    loadingToastId.current = null;
-    SuperToast.success({
-      ...getToastStyle('success'),
-      title: 'All done',
-      message: 'Loading toast dismissed.',
-      icon: '✓',
-    });
-  }
-
-  async function simulateUpload(shouldFail: boolean) {
-    if (loadingToastId.current) return;
-    const toastId = SuperToast.loading({
-      ...getToastStyle('loading'),
-      title: 'Uploading file',
-      message: 'Preparing your upload…',
-      duration: 0,
-      closeOnPress: false,
-      swipeToDismiss: false,
-    });
-    loadingToastId.current = toastId;
-    await new Promise((resolve) => setTimeout(resolve, 2200));
-    SuperToast.update(toastId, {
-      ...getToastStyle(shouldFail ? 'error' : 'success'),
-      kind: shouldFail ? 'error' : 'success',
-      title: shouldFail ? 'Upload failed' : 'Upload complete',
-      message: shouldFail
-        ? 'The server rejected the simulated upload.'
-        : 'Your file is ready to go.',
-      icon: shouldFail ? '×' : '✓',
-      duration: 2500,
-      closeOnPress: true,
-      swipeToDismiss: true,
-      haptic: true,
-    });
-    loadingToastId.current = null;
-  }
-
-  function showStackDemo() {
-    const variants: ToastKind[] = ['success', 'info', 'warning'];
+  const showBurst = useCallback(() => {
     [
-      'Changes saved.',
-      'New message received.',
-      'Background sync complete.',
-    ].forEach((message, index) => {
-      setTimeout(
-        () =>
-          SuperToast.show({
-            ...getToastStyle(variants[index] ?? 'default'),
-            kind: variants[index],
-            title: `Activity 0${index + 1}`,
-            message,
-            duration: 3200 + index * 500,
-            stack: true,
-          }),
-        index * 450
-      );
-    });
-  }
+      'Changes saved',
+      'New message received',
+      'Background sync complete',
+    ].forEach((title, index) => setTimeout(() => toast(title), index * 350));
+  }, []);
 
   const renderBackdrop = (props: BottomSheetBackdropProps) => (
     <BottomSheetBackdrop
@@ -408,9 +303,7 @@ export default function App() {
     />
   );
 
-  const modalIntro = (label: string, title: string, copy: string) => (
-    <PageIntro label={label} title={title} copy={copy} />
-  );
+  const onOff = (value: boolean) => (value ? 'ON' : 'OFF');
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -423,35 +316,87 @@ export default function App() {
             <PageIntro
               label="A TINY NATIVE NOTIFICATION LAB"
               title={'Toast,\nbut make it crisp.'}
-              copy="A monochrome playground for icons, loading states, stacks, modals, and sheets."
+              copy="Sonner-style toasts that stay above modals and bottom sheets."
             />
 
-            <Section index="01" title="Toast essentials">
-              <ActionButton onPress={() => showTextIcon('main screen')}>
-                Text icon
+            <Section index="01" title="Variants">
+              <ActionButton onPress={demos.plain}>Default</ActionButton>
+              <ActionButton onPress={demos.description}>
+                With description
               </ActionButton>
-              <ActionButton onPress={showPngIcon}>PNG icon</ActionButton>
-              <ActionButton onPress={() => showFontIcon('main screen')}>
-                Vector icon
+              <ActionButton onPress={demos.success}>Success</ActionButton>
+              <ActionButton onPress={demos.error}>Error</ActionButton>
+              <ActionButton onPress={demos.warning}>Warning</ActionButton>
+              <ActionButton onPress={demos.info}>Info + close</ActionButton>
+            </Section>
+
+            <Section index="02" title="Interactions">
+              <ActionButton onPress={demos.action}>Action</ActionButton>
+              <ActionButton onPress={demos.confirm}>
+                Action + cancel
               </ActionButton>
-              <ActionButton onPress={() => showLoadingIcon('main screen')}>
-                Persistent loading
+              <ActionButton onPress={() => demos.promise(false)}>
+                Promise success
               </ActionButton>
-              <ActionButton onPress={dismissLoadingIcon} tone="quiet">
-                Dismiss loading
+              <ActionButton onPress={() => demos.promise(true)}>
+                Promise failure
               </ActionButton>
-              <ActionButton onPress={() => simulateUpload(false)}>
-                Successful upload
+              <ActionButton onPress={demos.wiggle} tone="quiet">
+                Wiggle last toast
               </ActionButton>
-              <ActionButton onPress={() => simulateUpload(true)}>
-                Failed upload
-              </ActionButton>
-              <ActionButton onPress={showStackDemo} tone="dark">
-                Stack three toasts
+              <ActionButton onPress={showBurst} tone="dark">
+                Show three toasts
               </ActionButton>
             </Section>
 
-            <Section index="02" title="Native modals">
+            <Section index="03" title="Icons & styles">
+              <ActionButton onPress={demos.pngIcon}>PNG icon</ActionButton>
+              <ActionButton onPress={demos.icon}>Vector icon</ActionButton>
+              <ActionButton onPress={demos.styled}>Custom styles</ActionButton>
+            </Section>
+
+            <Section index="04" title="Toaster">
+              <ActionButton
+                onPress={() => setPosition(next(POSITIONS, position))}
+                value={position}
+              >
+                Position
+              </ActionButton>
+              <ActionButton
+                onPress={() => setTheme(next(THEMES, theme))}
+                value={theme}
+              >
+                Theme
+              </ActionButton>
+              <ActionButton
+                onPress={() => setRichColors(!richColors)}
+                value={onOff(richColors)}
+              >
+                Rich colors
+              </ActionButton>
+              <ActionButton
+                onPress={() => setCloseButton(!closeButton)}
+                value={onOff(closeButton)}
+              >
+                Close button
+              </ActionButton>
+              <ActionButton
+                onPress={() => setEnableStacking(!enableStacking)}
+                value={onOff(enableStacking)}
+              >
+                Stacking
+              </ActionButton>
+              <ActionButton
+                onPress={() =>
+                  setSwipeDirection(next(SWIPE_DIRECTIONS, swipeDirection))
+                }
+                value={swipeDirection}
+              >
+                Swipe direction
+              </ActionButton>
+            </Section>
+
+            <Section index="05" title="Native modals">
               <ActionButton onPress={() => setPageSheetModalVisible(true)}>
                 Open page sheet
               </ActionButton>
@@ -460,7 +405,7 @@ export default function App() {
               </ActionButton>
             </Section>
 
-            <Section index="03" title="Bottom sheets">
+            <Section index="06" title="Bottom sheets">
               <ActionButton
                 onPress={() => regularSheetRef.current?.snapToIndex(0)}
               >
@@ -475,7 +420,7 @@ export default function App() {
             </Section>
 
             <Pressable
-              onPress={SuperToast.dismissAll}
+              onPress={() => toast.dismiss()}
               style={({ pressed }) => [
                 styles.dismissAll,
                 pressed && styles.buttonPressed,
@@ -497,11 +442,11 @@ export default function App() {
           >
             <SafeAreaView style={styles.modalRoot}>
               <ScrollView contentContainerStyle={styles.content}>
-                {modalIntro(
-                  'NATIVE LAYER / 01',
-                  'Page sheet.',
-                  'Toasts remain visible above a standard React Native modal.'
-                )}
+                <PageIntro
+                  label="NATIVE LAYER / 01"
+                  title="Page sheet."
+                  copy="Toasts remain visible above a standard React Native modal."
+                />
                 <ToastActionsCard
                   source="Page sheet"
                   onOpenNested={() => parentModalRef.current?.present()}
@@ -531,26 +476,12 @@ export default function App() {
                   A compact stress test for toast z-order.
                 </Text>
                 <View style={styles.actionList}>
-                  <ActionButton
-                    onPress={() => showTextIcon('transparent modal')}
-                  >
-                    Text icon toast
+                  <ActionButton onPress={demos.success}>Success</ActionButton>
+                  <ActionButton onPress={demos.confirm}>
+                    Action + cancel
                   </ActionButton>
-                  <ActionButton onPress={showPngIcon}>
-                    PNG icon toast
-                  </ActionButton>
-                  <ActionButton
-                    onPress={() => showFontIcon('transparent modal')}
-                  >
-                    Vector icon toast
-                  </ActionButton>
-                  <ActionButton
-                    onPress={() => showLoadingIcon('transparent modal')}
-                  >
-                    Persistent loading
-                  </ActionButton>
-                  <ActionButton onPress={dismissLoadingIcon} tone="quiet">
-                    Dismiss loading
+                  <ActionButton onPress={() => demos.promise(false)}>
+                    Promise
                   </ActionButton>
                   <ActionButton
                     onPress={() => setTransparentModalVisible(false)}
@@ -571,11 +502,11 @@ export default function App() {
           >
             <SafeAreaView style={styles.modalRoot}>
               <ScrollView contentContainerStyle={styles.content}>
-                {modalIntro(
-                  'COMPOSITE LAYER',
-                  'Modal + sheet.',
-                  'The toast stays above both native and Gorhom layers.'
-                )}
+                <PageIntro
+                  label="COMPOSITE LAYER"
+                  title="Modal + sheet."
+                  copy="The toast stays above both native and Gorhom layers."
+                />
                 <ToastActionsCard source="RN modal" />
                 <ActionButton
                   onPress={() => regularSheetRef.current?.snapToIndex(0)}
@@ -607,9 +538,6 @@ export default function App() {
             <BottomSheetView style={styles.sheetContent}>
               <Text style={styles.kicker}>GORHOM / REGULAR</Text>
               <Text style={styles.sheetTitle}>Bottom sheet.</Text>
-              <Text style={styles.overlayCopy}>
-                Toast visibility from a standard sheet.
-              </Text>
               <ToastActionsCard
                 source="Regular bottom sheet"
                 onOpenNested={() => parentModalRef.current?.present()}
@@ -698,7 +626,15 @@ export default function App() {
               </ActionButton>
             </BottomSheetView>
           </BottomSheetModal>
-          <SuperToastHost />
+
+          <Toaster
+            position={position}
+            theme={theme}
+            richColors={richColors}
+            closeButton={closeButton}
+            enableStacking={enableStacking}
+            swipeToDismissDirection={swipeDirection}
+          />
         </SafeAreaView>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
@@ -821,7 +757,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   buttonLabelDark: { color: COLORS.white },
-  buttonArrow: { color: COLORS.muted, fontSize: 15 },
+  buttonValue: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
   dismissAll: {
     minHeight: 58,
     borderRadius: 16,

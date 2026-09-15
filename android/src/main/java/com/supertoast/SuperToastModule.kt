@@ -1,35 +1,27 @@
 package com.supertoast
 
 import android.view.HapticFeedbackConstants
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.UiThreadUtil
 
 class SuperToastModule(private val reactContext: ReactApplicationContext) : NativeSuperToastSpec(reactContext) {
-  private val host = ToastDialogHost(reactContext)
+  private val host = ToastDialogHost(reactContext, ::emitEvent)
 
   override fun getName(): String = NAME
 
-  override fun show(options: ReadableMap): String {
-    val config = ToastConfig.from(options, host.defaults)
+  override fun show(options: ReadableMap) {
+    val config = ToastConfig.from(options) ?: return
     UiThreadUtil.runOnUiThread { host.show(config) }
-    return config.id
-  }
-
-  override fun update(id: String, options: ReadableMap) {
-    UiThreadUtil.runOnUiThread { host.update(id, options) }
   }
 
   override fun dismiss(id: String?) {
     UiThreadUtil.runOnUiThread { host.dismiss(id) }
   }
 
-  override fun dismissAll() {
-    UiThreadUtil.runOnUiThread { host.dismissAll() }
-  }
-
-  override fun configure(defaults: ReadableMap) {
-    UiThreadUtil.runOnUiThread { host.configure(defaults) }
+  override fun wiggle(id: String) {
+    UiThreadUtil.runOnUiThread { host.wiggle(id) }
   }
 
   override fun triggerHaptic() {
@@ -40,7 +32,18 @@ class SuperToastModule(private val reactContext: ReactApplicationContext) : Nati
     }
   }
 
+  private fun emitEvent(id: String, type: String) {
+    if (!reactContext.hasActiveReactInstance()) return
+
+    val payload = Arguments.createMap().apply {
+      putString("id", id)
+      putString("type", type)
+    }
+    reactContext.emitDeviceEvent(EVENT_NAME, payload)
+  }
+
   companion object {
     const val NAME = "SuperToast"
+    private const val EVENT_NAME = "SuperToastEvent"
   }
 }

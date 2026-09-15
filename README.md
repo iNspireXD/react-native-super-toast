@@ -1,34 +1,41 @@
 # react-native-super-toast
 
-A performant toast library that renders above everything, including modals and
-bottom sheets.
+Sonner-style toasts for React Native that render above everything, including
+native modals and bottom sheets.
+
+- The API follows [sonner](https://sonner.emilkowal.ski/) and
+  [sonner-native](https://github.com/gunnartorfis/sonner-native): `toast()` and
+  `<Toaster />`
+- `success`, `error`, `warning`, `info`, `loading`, and `promise` variants
+- Title, description, action, and cancel buttons
+- Light, dark, and system themes, with optional rich colors
+- Top, bottom, or center positions, listed or stacked
+- Swipe up or left to dismiss, plus an optional close button
+- Updating a toast in place, `toast.wiggle`, haptics, and image, text, or font
+  icons
+- Rendered natively on Android (dialog windows) and through
+  `FullWindowOverlay` on iOS, with no Reanimated, Gesture Handler, or SVG
+  dependency
 
 ## Installation
 
 ```sh
 npm install react-native-super-toast react-native-screens
-```
-
-On iOS, install the native pods after adding the packages:
-
-```sh
 npx pod-install
 ```
 
 ## Setup
 
-Mount `SuperToastHost` once near the root of the app. On iOS it uses
-`FullWindowOverlay` from `react-native-screens`; on Android it renders nothing
-because Android uses the native dialog host.
+Mount `Toaster` once near the root of the app.
 
 ```tsx
-import { SuperToastHost } from 'react-native-super-toast';
+import { Toaster } from 'react-native-super-toast';
 
 export default function App() {
   return (
     <>
       <YourApp />
-      <SuperToastHost />
+      <Toaster />
     </>
   );
 }
@@ -37,114 +44,162 @@ export default function App() {
 ## Usage
 
 ```tsx
-import SuperToast from 'react-native-super-toast';
+import { toast } from 'react-native-super-toast';
 
-SuperToast.success({
-  title: 'Saved',
-  message: 'Your changes are ready.',
-  icon: '✓',
-});
+toast('Event has been created');
 
-const loadingId = SuperToast.loading({
-  title: 'Uploading',
-  duration: 0,
-});
-
-SuperToast.dismiss(loadingId);
+toast.success('Saved', { description: 'Your changes are live.' });
+toast.error('Could not reach the server');
+toast.warning('Storage almost full');
+toast.info('New version available');
 ```
 
-Use fonts bundled by the consuming app for the title and message:
+### Actions
+
+Pressing the action calls `onClick` and dismisses the toast. Pressing cancel
+calls `onClick`, then `onDismiss`, and dismisses the toast.
 
 ```tsx
-SuperToast.show({
-  title: 'Custom typography',
-  message: 'Title and message fonts can be configured independently.',
-  titleFontFamily: 'Inter',
-  messageFontFamily: 'Lora',
-});
-
-SuperToast.configure({
-  titleFontFamily: 'Inter',
-  messageFontFamily: 'Inter',
+toast('Message archived', {
+  action: { label: 'Undo', onClick: () => restore() },
+  cancel: { label: 'Close', onClick: () => {} },
 });
 ```
 
-The family names follow React Native's normal custom-font setup. On Android,
-font files linked into `assets/fonts` should use the family name as their file
-name (for example, `Inter.ttf` and optionally `Inter_bold.ttf`). On iOS, use
-the font family name registered by the app.
-
-Update a persistent toast in place to represent an async task:
+### Promises
 
 ```tsx
-const id = SuperToast.loading({
-  title: 'Uploading',
-  message: 'Please wait…',
-  duration: 0,
+toast.promise(uploadFile(), {
+  loading: 'Uploading…',
+  success: (file) => `${file.name} uploaded`,
+  error: (error) => `Upload failed: ${String(error)}`,
 });
-
-try {
-  await uploadFile();
-  SuperToast.update(id, {
-    kind: 'success',
-    title: 'Upload complete',
-    message: 'Your file is ready.',
-    duration: 2500,
-  });
-} catch {
-  SuperToast.update(id, {
-    kind: 'error',
-    title: 'Upload failed',
-    duration: 3000,
-  });
-}
 ```
 
-When no custom icon is supplied, `loading` uses an animated spinner and the
-success, error, warning, and info states use built-in state icons.
+### Updating, dismissing, and wiggling
 
-The host supports top, center, and bottom positioning, content or screen width,
-queueing, slide/fade/scale animations, image and font icons, press or swipe
-dismissal, haptics, and persistent toasts.
-
-### Stacked toasts
-
-Enable `stack` for overlapping top- or bottom-positioned toasts. New toasts
-appear in front, while older toasts remain visible underneath and keep their
-own durations.
+Showing a toast with an existing `id` updates that toast in place.
 
 ```tsx
-SuperToast.configure({
-  position: 'top',
-  stack: true,
-  stackLimit: 3,
-  stackOffset: 10,
-});
+const id = toast.loading('Uploading…');
+// later
+toast.success('Uploaded', { id });
 
-SuperToast.show({ title: 'Saved', message: 'Your changes were saved.' });
-SuperToast.show({ title: 'New message', message: 'Sarah sent a photo.' });
+toast.wiggle(id); // draw attention
+toast.dismiss(id); // dismiss one
+toast.dismiss(); // dismiss all
 ```
 
-`stackLimit` controls the visible layer count and `stackOffset` controls how
-many points each older card peeks out below the newest card.
+`toast.loading` toasts stay visible until they are updated or dismissed. Pass
+`duration: Infinity` to keep any other toast visible.
 
-### Animation speed
+## Toast options
 
-Use `enterDuration` and `exitDuration` to control animation timing in
-milliseconds. They can be configured globally or overridden per toast.
+| Option | Type | Description |
+| --- | --- | --- |
+| `id` | `string \| number` | Reuse an id to update a toast. |
+| `description` | `string` | Secondary text. |
+| `icon` | `ToastIcon` | Replaces the variant icon. |
+| `duration` | `number` | Milliseconds, or `Infinity`. |
+| `position` | `'top-center' \| 'bottom-center' \| 'center'` | Overrides the Toaster. |
+| `dismissible` | `boolean` | Allows swipe and close-button dismissal. Default `true`. |
+| `closeButton` | `boolean` | Shows a close button. |
+| `richColors` | `boolean` | Tinted background for variants. |
+| `invert` | `boolean` | Uses the opposite theme. |
+| `haptic` | `boolean` | Plays a light haptic when the toast appears. |
+| `action`, `cancel` | `{ label, onClick }` | Buttons below the text. |
+| `onDismiss`, `onAutoClose` | `(id) => void` | Called when the toast is dismissed or times out. |
+| `onPress` | `() => void` | Called when the toast is pressed. |
+| `style`, `styles` | `ToastViewStyle`, `ToastStyles` | See [Styling](#styling). |
+| `actionButtonStyle`, `actionButtonTextStyle`, `cancelButtonStyle`, `cancelButtonTextStyle` | styles | Button styles. |
+
+## Toaster props
+
+| Prop | Default | Description |
+| --- | --- | --- |
+| `position` | `'top-center'` | Where toasts appear. |
+| `theme` | `'system'` | `'light'`, `'dark'`, or `'system'`. |
+| `richColors` | `false` | Tinted backgrounds for variants. |
+| `invert` | `false` | Uses the opposite theme. |
+| `closeButton` | `false` | Shows a close button on every toast. |
+| `duration` | `4000` | Default duration in milliseconds. |
+| `visibleToasts` | `3` | Maximum toasts per position. Older toasts are dismissed. |
+| `gap` | `14` | Space between listed toasts. |
+| `offset` | `8` | Distance from the safe area edge. |
+| `swipeToDismissDirection` | `'up'` | `'up'` swipes towards the nearest edge; `'left'` swipes sideways. |
+| `enableStacking` | `false` | Collapses toasts into an overlapping deck. |
+| `haptic` | `false` | Default haptic setting. |
+| `icons` | — | Replaces the icon for `success`, `error`, `warning`, `info`, or `loading`. |
+| `toastOptions` | — | Default styles, including per-variant container styles. |
+
+## Styling
+
+Android draws toasts with native views, so styles use a fixed set of keys that
+render the same on both platforms:
+
+- `ToastViewStyle`: `backgroundColor`, `borderColor`, `borderWidth`,
+  `borderRadius`, `padding`, `paddingHorizontal`, `paddingVertical`
+- `ToastTextStyle`: `color`, `fontSize`, `fontFamily`, `fontWeight`,
+  `lineHeight`
 
 ```tsx
-SuperToast.configure({
-  enterDuration: 320,
-  exitDuration: 230,
-});
+<Toaster
+  toastOptions={{
+    style: { borderRadius: 12 },
+    titleStyle: { fontFamily: 'Inter' },
+    success: { backgroundColor: '#ecfdf3' },
+  }}
+/>;
 
-SuperToast.show({
-  message: 'Slower entrance, quick exit',
-  enterDuration: 450,
-  exitDuration: 160,
+toast('Custom', {
+  style: { backgroundColor: '#111111' },
+  styles: {
+    title: { color: '#ffffff' },
+    description: { color: '#c8c8c3' },
+    icon: { color: '#7ee2a8' },
+    closeButtonIcon: { color: '#ffffff' },
+  },
 });
 ```
+
+Font families follow React Native's custom font setup. On Android, font files
+linked into `assets/fonts` should use the family name as their file name.
+
+## Icons
+
+```tsx
+import { fontIcon, toast } from 'react-native-super-toast';
+
+toast('Text icon', { icon: '🎉' });
+toast('Image icon', {
+  icon: { type: 'image', source: require('./bell.png'), tintColor: '#111' },
+});
+toast('Font icon', {
+  icon: fontIcon({ glyph: 0xe7f4, fontFamily: 'Material Icons' }),
+});
+```
+
+## Differences from sonner-native
+
+- Toast content is data, not JSX: there is no `toast.custom`, and icons and
+  buttons do not accept React elements. This lets Android render toasts in
+  native windows above modals.
+- Styles are limited to the keys listed in [Styling](#styling).
+- Stacked toasts do not expand when pressed.
+- Plain `toast()` shows no icon, as in web sonner.
+
+## Migrating from 0.1
+
+| 0.1 | Now |
+| --- | --- |
+| `<SuperToastHost />` | `<Toaster />` |
+| `SuperToast.show({ title, message })` | `toast(title, { description })` |
+| `SuperToast.success({ ... })` | `toast.success(title, { ... })` |
+| `SuperToast.update(id, { kind: 'success', ... })` | `toast.success(title, { id, ... })` |
+| `SuperToast.dismiss(id)` / `dismissAll()` | `toast.dismiss(id)` / `toast.dismiss()` |
+| `SuperToast.configure({ ... })` | `<Toaster ... />` props |
+| `stack: true` | `<Toaster enableStacking />` |
+| `backgroundColor`, `titleColor`, `messageColor` | `style`, `styles.title`, `styles.description` |
 
 ## Contributing
 

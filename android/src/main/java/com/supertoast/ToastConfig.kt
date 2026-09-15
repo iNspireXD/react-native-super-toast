@@ -3,7 +3,6 @@ package com.supertoast
 import android.graphics.Color
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReadableType
-import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -21,177 +20,145 @@ data class ToastIconConfig(
   val cornerRadiusDp: Int = 0,
 )
 
-data class ToastConfig(
-  val id: String = UUID.randomUUID().toString(),
-  val kind: String = "default",
-  val title: String? = null,
-  val message: String? = null,
-  val icon: ToastIconConfig? = null,
-  val durationMs: Long = 3000,
-  val position: String = "top",
-  val widthMode: String = "content",
-  val animation: String = "slide",
-  val enterDurationMs: Long = 320,
-  val exitDurationMs: Long = 230,
-  val topOffsetDp: Int = 48,
-  val bottomOffsetDp: Int = 48,
-  val maxWidthDp: Int = 420,
-  val horizontalMarginDp: Int = 16,
-  val backgroundColor: Int = Color.rgb(31, 41, 55),
-  val titleColor: Int = Color.WHITE,
-  val messageColor: Int = Color.WHITE,
-  val iconColor: Int = Color.WHITE,
+data class ToastBoxStyle(
+  val backgroundColor: Int = Color.TRANSPARENT,
   val borderColor: Int = Color.TRANSPARENT,
-  val borderWidthDp: Int = 0,
-  val borderRadiusDp: Int = 14,
-  val paddingHorizontalDp: Int = 16,
-  val paddingVerticalDp: Int = 12,
-  val gapDp: Int = 8,
-  val titleSizeSp: Float = 15f,
-  val messageSizeSp: Float = 14f,
-  val titleFontFamily: String? = null,
-  val messageFontFamily: String? = null,
-  val elevationDp: Int = 8,
-  val shadowOpacity: Float = 0.18f,
-  val swipeToDismiss: Boolean = true,
-  val closeOnPress: Boolean = false,
-  val haptic: Boolean = false,
-  val queue: Boolean = true,
-  val stack: Boolean = false,
-  val stackLimit: Int = 3,
-  val stackOffsetDp: Int = 10,
+  val borderWidthDp: Float = 0f,
+  val borderRadiusDp: Float = 0f,
+  val paddingHorizontalDp: Float = 0f,
+  val paddingVerticalDp: Float = 0f,
+)
+
+data class ToastTextStyle(
+  val color: Int = Color.BLACK,
+  val fontSizeSp: Float = 14f,
+  val fontFamily: String? = null,
+  val fontWeight: Int = 400,
+  val lineHeightSp: Float? = null,
+)
+
+data class ToastButtonConfig(
+  val label: String,
+  val style: ToastBoxStyle,
+  val textStyle: ToastTextStyle,
+)
+
+/** A toast whose visual values were fully resolved in JS (see resolve.ts). */
+data class ToastConfig(
+  val id: String,
+  val variant: String,
+  val title: String,
+  val description: String?,
+  val icon: ToastIconConfig?,
+  val iconColor: Int,
+  val durationMs: Long,
+  val position: String,
+  val dismissible: Boolean,
+  val closeButton: Boolean,
+  val closeButtonColor: Int,
+  val swipeDirection: String,
+  val haptic: Boolean,
+  val enableStacking: Boolean,
+  val visibleToasts: Int,
+  val gapDp: Float,
+  val offsetDp: Float?,
+  val style: ToastBoxStyle,
+  val titleStyle: ToastTextStyle,
+  val descriptionStyle: ToastTextStyle,
+  val action: ToastButtonConfig?,
+  val cancel: ToastButtonConfig?,
 ) {
   companion object {
-    fun from(map: ReadableMap, defaults: ToastConfig): ToastConfig {
-      val kind = map.string("kind") ?: defaults.kind
-      val palette = paletteFor(kind)
+    fun from(map: ReadableMap): ToastConfig? {
+      val id = map.string("id") ?: return null
 
-      return defaults.copy(
-        id = map.string("id") ?: UUID.randomUUID().toString(),
-        kind = kind,
-        title = map.string("title"),
-        message = map.string("message"),
-        icon = map.icon("icon") ?: defaults.icon,
-        durationMs = map.long("duration") ?: defaults.durationMs,
-        position = map.string("position") ?: defaults.position,
-        widthMode = map.string("widthMode") ?: defaults.widthMode,
-        animation = map.string("animation") ?: defaults.animation,
-        enterDurationMs = (map.long("enterDuration") ?: defaults.enterDurationMs).coerceAtLeast(0),
-        exitDurationMs = (map.long("exitDuration") ?: defaults.exitDurationMs).coerceAtLeast(0),
-        topOffsetDp = map.int("topOffset") ?: defaults.topOffsetDp,
-        bottomOffsetDp = map.int("bottomOffset") ?: defaults.bottomOffsetDp,
-        maxWidthDp = map.int("maxWidth") ?: defaults.maxWidthDp,
-        horizontalMarginDp = map.int("horizontalMargin") ?: defaults.horizontalMarginDp,
-        backgroundColor = map.color("backgroundColor") ?: palette.first,
-        titleColor = map.color("titleColor") ?: defaults.titleColor,
-        messageColor = map.color("messageColor") ?: defaults.messageColor,
-        iconColor = map.color("iconColor") ?: palette.second,
-        borderColor = map.color("borderColor") ?: defaults.borderColor,
-        borderWidthDp = map.int("borderWidth") ?: defaults.borderWidthDp,
-        borderRadiusDp = map.int("borderRadius") ?: defaults.borderRadiusDp,
-        paddingHorizontalDp = map.int("paddingHorizontal") ?: defaults.paddingHorizontalDp,
-        paddingVerticalDp = map.int("paddingVertical") ?: defaults.paddingVerticalDp,
-        gapDp = map.int("gap") ?: defaults.gapDp,
-        titleSizeSp = map.float("titleSize") ?: defaults.titleSizeSp,
-        messageSizeSp = map.float("messageSize") ?: defaults.messageSizeSp,
-        titleFontFamily = map.string("titleFontFamily") ?: defaults.titleFontFamily,
-        messageFontFamily = map.string("messageFontFamily") ?: defaults.messageFontFamily,
-        elevationDp = map.int("elevation") ?: defaults.elevationDp,
-        shadowOpacity = map.float("shadowOpacity") ?: defaults.shadowOpacity,
-        swipeToDismiss = map.bool("swipeToDismiss") ?: defaults.swipeToDismiss,
-        closeOnPress = map.bool("closeOnPress") ?: defaults.closeOnPress,
-        haptic = map.bool("haptic") ?: defaults.haptic,
-        queue = map.bool("queue") ?: defaults.queue,
-        stack = map.bool("stack") ?: defaults.stack,
-        stackLimit = (map.int("stackLimit") ?: defaults.stackLimit).coerceAtLeast(1),
-        stackOffsetDp = (map.int("stackOffset") ?: defaults.stackOffsetDp).coerceAtLeast(0),
+      return ToastConfig(
+        id = id,
+        variant = map.string("variant") ?: "default",
+        title = map.string("title") ?: "",
+        description = map.string("description")?.takeIf { it.isNotBlank() },
+        icon = map.icon("icon"),
+        iconColor = map.color("iconColor") ?: Color.DKGRAY,
+        durationMs = (map.long("duration") ?: 4000L).coerceAtLeast(0L),
+        position = map.string("position") ?: "top-center",
+        dismissible = map.bool("dismissible") ?: true,
+        closeButton = map.bool("closeButton") ?: false,
+        closeButtonColor = map.color("closeButtonColor") ?: Color.DKGRAY,
+        swipeDirection = map.string("swipeDirection") ?: "up",
+        haptic = map.bool("haptic") ?: false,
+        enableStacking = map.bool("enableStacking") ?: false,
+        visibleToasts = (map.int("visibleToasts") ?: 3).coerceAtLeast(1),
+        gapDp = map.float("gap") ?: 14f,
+        offsetDp = map.float("offset"),
+        style = map.map("style").box(),
+        titleStyle = map.map("titleStyle").text(),
+        descriptionStyle = map.map("descriptionStyle").text(),
+        action = map.map("action")?.button(),
+        cancel = map.map("cancel")?.button(),
       )
-    }
-
-    fun update(map: ReadableMap, current: ToastConfig): ToastConfig {
-      val kind = map.string("kind") ?: current.kind
-      val kindChanged = kind != current.kind
-      val palette = paletteFor(kind)
-
-      return current.copy(
-        id = current.id,
-        kind = kind,
-        title = if (map.hasKey("title")) map.string("title") else current.title,
-        message = if (map.hasKey("message")) map.string("message") else current.message,
-        icon = when {
-          map.hasKey("icon") -> map.icon("icon")
-          kindChanged -> null
-          else -> current.icon
-        },
-        durationMs = map.long("duration") ?: current.durationMs,
-        position = map.string("position") ?: current.position,
-        widthMode = map.string("widthMode") ?: current.widthMode,
-        animation = map.string("animation") ?: current.animation,
-        enterDurationMs = (map.long("enterDuration") ?: current.enterDurationMs).coerceAtLeast(0),
-        exitDurationMs = (map.long("exitDuration") ?: current.exitDurationMs).coerceAtLeast(0),
-        topOffsetDp = map.int("topOffset") ?: current.topOffsetDp,
-        bottomOffsetDp = map.int("bottomOffset") ?: current.bottomOffsetDp,
-        maxWidthDp = map.int("maxWidth") ?: current.maxWidthDp,
-        horizontalMarginDp = map.int("horizontalMargin") ?: current.horizontalMarginDp,
-        backgroundColor = map.color("backgroundColor")
-          ?: if (kindChanged) palette.first else current.backgroundColor,
-        titleColor = map.color("titleColor") ?: current.titleColor,
-        messageColor = map.color("messageColor") ?: current.messageColor,
-        iconColor = map.color("iconColor")
-          ?: if (kindChanged) palette.second else current.iconColor,
-        borderColor = map.color("borderColor") ?: current.borderColor,
-        borderWidthDp = map.int("borderWidth") ?: current.borderWidthDp,
-        borderRadiusDp = map.int("borderRadius") ?: current.borderRadiusDp,
-        paddingHorizontalDp = map.int("paddingHorizontal") ?: current.paddingHorizontalDp,
-        paddingVerticalDp = map.int("paddingVertical") ?: current.paddingVerticalDp,
-        gapDp = map.int("gap") ?: current.gapDp,
-        titleSizeSp = map.float("titleSize") ?: current.titleSizeSp,
-        messageSizeSp = map.float("messageSize") ?: current.messageSizeSp,
-        titleFontFamily = map.string("titleFontFamily") ?: current.titleFontFamily,
-        messageFontFamily = map.string("messageFontFamily") ?: current.messageFontFamily,
-        elevationDp = map.int("elevation") ?: current.elevationDp,
-        shadowOpacity = map.float("shadowOpacity") ?: current.shadowOpacity,
-        swipeToDismiss = map.bool("swipeToDismiss") ?: current.swipeToDismiss,
-        closeOnPress = map.bool("closeOnPress") ?: current.closeOnPress,
-        haptic = map.bool("haptic") ?: current.haptic,
-        queue = current.queue,
-        stack = current.stack,
-        stackLimit = current.stackLimit,
-        stackOffsetDp = current.stackOffsetDp,
-      )
-    }
-
-    private fun paletteFor(kind: String): Pair<Int, Int> = when (kind) {
-      "success" -> Color.rgb(22, 101, 52) to Color.rgb(187, 247, 208)
-      "error" -> Color.rgb(127, 29, 29) to Color.rgb(254, 202, 202)
-      "warning" -> Color.rgb(113, 63, 18) to Color.rgb(254, 240, 138)
-      "info" -> Color.rgb(30, 64, 175) to Color.rgb(191, 219, 254)
-      "loading" -> Color.rgb(63, 63, 70) to Color.WHITE
-      else -> Color.rgb(31, 41, 55) to Color.WHITE
     }
   }
 }
 
-private fun ReadableMap.string(key: String): String? = if (hasKey(key) && !isNull(key)) getString(key) else null
-private fun ReadableMap.bool(key: String): Boolean? = if (hasKey(key) && !isNull(key)) getBoolean(key) else null
-private fun ReadableMap.int(key: String): Int? = if (hasKey(key) && !isNull(key)) getDouble(key).roundToInt() else null
-private fun ReadableMap.long(key: String): Long? =
-  if (hasKey(key) && !isNull(key)) getDouble(key).roundToLong() else null
+private fun ReadableMap.has(key: String): Boolean = hasKey(key) && !isNull(key)
 
-private fun ReadableMap.float(key: String): Float? = if (hasKey(key) && !isNull(key)) getDouble(key).toFloat() else null
+private fun ReadableMap.string(key: String): String? = if (has(key)) getString(key) else null
+
+private fun ReadableMap.bool(key: String): Boolean? = if (has(key)) getBoolean(key) else null
+
+private fun ReadableMap.int(key: String): Int? = if (has(key)) getDouble(key).roundToInt() else null
+
+private fun ReadableMap.long(key: String): Long? = if (has(key)) getDouble(key).roundToLong() else null
+
+private fun ReadableMap.float(key: String): Float? = if (has(key)) getDouble(key).toFloat() else null
+
 private fun ReadableMap.color(key: String): Int? = string(key)?.let { parseColorOrNull(it) }
 
+private fun ReadableMap.map(key: String): ReadableMap? =
+  if (has(key) && getType(key) == ReadableType.Map) getMap(key) else null
+
+private fun ReadableMap?.box(): ToastBoxStyle {
+  if (this == null) return ToastBoxStyle()
+
+  return ToastBoxStyle(
+    backgroundColor = color("backgroundColor") ?: Color.TRANSPARENT,
+    borderColor = color("borderColor") ?: Color.TRANSPARENT,
+    borderWidthDp = float("borderWidth") ?: 0f,
+    borderRadiusDp = float("borderRadius") ?: 0f,
+    paddingHorizontalDp = float("paddingHorizontal") ?: 0f,
+    paddingVerticalDp = float("paddingVertical") ?: 0f,
+  )
+}
+
+private fun ReadableMap?.text(): ToastTextStyle {
+  if (this == null) return ToastTextStyle()
+
+  return ToastTextStyle(
+    color = color("color") ?: Color.BLACK,
+    fontSizeSp = float("fontSize") ?: 14f,
+    fontFamily = string("fontFamily")?.takeIf { it.isNotBlank() },
+    fontWeight = string("fontWeight")?.let { weight ->
+      weight.toIntOrNull() ?: if (weight == "bold") 700 else 400
+    } ?: 400,
+    lineHeightSp = float("lineHeight"),
+  )
+}
+
+private fun ReadableMap.button(): ToastButtonConfig? {
+  val label = string("label") ?: return null
+  return ToastButtonConfig(label, map("style").box(), map("textStyle").text())
+}
+
 private fun ReadableMap.icon(key: String): ToastIconConfig? {
-  if (!hasKey(key) || isNull(key)) return null
+  if (!has(key)) return null
 
   return when (getType(key)) {
     ReadableType.String -> ToastIconConfig(type = "text", value = getString(key))
     ReadableType.Map -> {
       val map = getMap(key) ?: return null
-      val type = map.string("type") ?: "text"
 
       ToastIconConfig(
-        type = type,
+        type = map.string("type") ?: "text",
         value = map.string("value"),
         glyph = map.string("glyph"),
         fontFamily = map.string("fontFamily"),

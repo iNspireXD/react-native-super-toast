@@ -1,115 +1,69 @@
-import { expect, it } from '@jest/globals';
+import { expect, it, jest } from '@jest/globals';
 
 import {
-  completeDismiss,
+  addEventListener,
+  completeRemove,
   dismiss,
-  dismissAll,
+  dismissFromToast,
   getSnapshot,
   show,
-  update,
 } from '../iosToastStore';
+import { resolveToast } from '../resolve';
 
-it('queues, replaces, and dismisses iOS overlay toasts', () => {
-  const firstId = show({ kind: 'success', message: 'First', duration: 0 });
-  const secondId = show({ message: 'Second', duration: 0 });
-
-  expect(getSnapshot().current).toMatchObject({
-    id: firstId,
-    enterDuration: 320,
-    exitDuration: 230,
-    backgroundColor: '#166534',
-    iconColor: '#BBF7D0',
-  });
-
-  dismiss(firstId);
-  expect(getSnapshot().dismissing).toBe(true);
-
-  completeDismiss(firstId);
-  expect(getSnapshot().current?.id).toBe(secondId);
-
-  update(secondId, {
-    kind: 'success',
-    title: 'Updated',
-    duration: 2500,
-  });
-  expect(getSnapshot().current).toMatchObject({
-    id: secondId,
-    kind: 'success',
-    title: 'Updated',
-    duration: 2500,
-    revision: 1,
-    backgroundColor: '#166534',
-    iconColor: '#BBF7D0',
-  });
-
-  const replacementId = show({
-    message: 'Replacement',
-    duration: 0,
-    queue: false,
-  });
-  expect(getSnapshot().current?.id).toBe(replacementId);
-
-  dismissAll();
-  completeDismiss(replacementId);
-  expect(getSnapshot()).toEqual({
-    current: null,
-    dismissing: false,
-    stacked: [],
-    stackedDismissingIds: [],
-  });
+const options = (id: string, position = 'top-center') => ({
+  ...resolveToast(id, `Toast ${id}`, 'default', {}),
+  position,
 });
 
-it('shows and independently dismisses stacked iOS overlay toasts', () => {
-  const firstId = show({
-    message: 'First stack',
-    duration: 0,
-    stack: true,
-  });
-  const secondId = show({
-    message: 'Second stack',
-    duration: 0,
-    stack: true,
-    stackLimit: 2,
-  });
-  const thirdId = show({
-    message: 'Third stack',
-    duration: 0,
-    stack: true,
-    stackLimit: 2,
-  });
+it('replaces an exiting toast that is shown again with the same id', () => {
+  const events = jest.fn();
+  const unsubscribe = addEventListener(events);
 
-  expect(getSnapshot().stacked.map((toast) => toast.id)).toEqual([
-    secondId,
-    thirdId,
+  show(options('a'));
+  const [first] = getSnapshot().toasts;
+  dismiss('a');
+  show(options('a'));
+
+  const toasts = getSnapshot().toasts;
+  expect(toasts).toHaveLength(1);
+  expect(toasts[0]?.dismissing).toBe(false);
+  expect(toasts[0]?.key).not.toBe(first?.key);
+
+  // The replaced card finishing its exit must not remove the new toast.
+  completeRemove(first!.key);
+  expect(getSnapshot().toasts).toHaveLength(1);
+  expect(events).not.toHaveBeenCalled();
+
+  dismiss(null);
+  completeRemove(getSnapshot().toasts[0]!.key);
+  expect(events).toHaveBeenCalledWith({ id: 'a', type: 'removed' });
+  unsubscribe();
+});
+
+it('emits toast-originated events only for active toasts', () => {
+  const events = jest.fn();
+  const unsubscribe = addEventListener(events);
+
+  show(options('b'));
+  dismissFromToast('b', 'dismiss');
+  dismissFromToast('b', 'autoClose');
+
+  expect(events).toHaveBeenCalledTimes(1);
+  expect(events).toHaveBeenCalledWith({ id: 'b', type: 'dismiss' });
+
+  completeRemove(getSnapshot().toasts[0]!.key);
+  unsubscribe();
+});
+
+it('limits visible toasts per position', () => {
+  ['1', '2', '3', '4'].forEach((id) => show(options(id)));
+  show(options('bottom', 'bottom-center'));
+
+  const active = getSnapshot().toasts.filter(({ dismissing }) => !dismissing);
+  expect(active.map(({ options: { id } }) => id)).toEqual([
+    '2',
+    '3',
+    '4',
+    'bottom',
   ]);
-
-  dismiss(secondId);
-  expect(getSnapshot().stackedDismissingIds).toEqual([secondId]);
-
-  completeDismiss(secondId);
-  expect(getSnapshot().stacked.map((toast) => toast.id)).toEqual([thirdId]);
-
-  dismissAll();
-  expect(getSnapshot().stackedDismissingIds).toEqual([thirdId]);
-  completeDismiss(thirdId);
-
-  expect(firstId).not.toBe(secondId);
-});
-
-it('supports stacked bottom-positioned iOS overlay toasts', () => {
-  const id = show({
-    message: 'Bottom stack',
-    duration: 0,
-    position: 'bottom',
-    stack: true,
-  });
-
-  expect(getSnapshot().stacked[0]).toMatchObject({
-    id,
-    position: 'bottom',
-    stack: true,
-  });
-
-  dismiss(id);
-  completeDismiss(id);
 });

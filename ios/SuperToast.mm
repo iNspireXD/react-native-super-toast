@@ -18,19 +18,10 @@ RCT_EXPORT_MODULE(SuperToast)
   return NO;
 }
 
-- (NSString *)show:(NSDictionary *)options
+// Toast state and rendering are handled in JS on iOS by backend.ios.ts,
+// iosToastStore.ts, and Toaster.ios.tsx. Only haptics need native code.
+- (void)show:(NSDictionary *)options
 {
-  // Toast state and rendering are handled by NativeSuperToast.ios.ts,
-  // iosToastStore.ts, and SuperToastHost.ios.tsx.
-  NSString *toastId = [options[@"id"] isKindOfClass:NSString.class]
-    ? options[@"id"]
-    : NSUUID.UUID.UUIDString;
-  return toastId;
-}
-
-- (void)update:(NSString *)toastId options:(NSDictionary *)options
-{
-  (void)toastId;
   (void)options;
 }
 
@@ -39,13 +30,9 @@ RCT_EXPORT_MODULE(SuperToast)
   (void)toastId;
 }
 
-- (void)dismissAll
+- (void)wiggle:(NSString *)toastId
 {
-}
-
-- (void)configure:(NSDictionary *)defaults
-{
-  (void)defaults;
+  (void)toastId;
 }
 
 - (void)triggerHaptic
