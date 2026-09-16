@@ -186,19 +186,6 @@ toast('Font icon', {
 - Styles are limited to the keys listed in [Styling](#styling).
 - Plain `toast()` shows no icon.
 
-## Migrating from 0.1
-
-| 0.1                                               | Now                                           |
-| ------------------------------------------------- | --------------------------------------------- |
-| `<SuperToastHost />`                              | `<ToastHost />`                               |
-| `SuperToast.show({ title, message })`             | `toast(title, { description })`               |
-| `SuperToast.success({ ... })`                     | `toast.success(title, { ... })`               |
-| `SuperToast.update(id, { kind: 'success', ... })` | `toast.success(title, { id, ... })`           |
-| `SuperToast.dismiss(id)` / `dismissAll()`         | `toast.dismiss(id)` / `toast.dismiss()`       |
-| `SuperToast.configure({ ... })`                   | `<ToastHost ... />` props                     |
-| `stack: true`                                     | `<ToastHost enableStacking />`                |
-| `backgroundColor`, `titleColor`, `messageColor`   | `style`, `styles.title`, `styles.description` |
-
 ## Contributing
 
 - [Development workflow](CONTRIBUTING.md#development-workflow)
