@@ -19,7 +19,7 @@ RCT_EXPORT_MODULE(SuperToast)
 }
 
 // Toast state and rendering are handled in JS on iOS by backend.ios.ts,
-// iosToastStore.ts, and Toaster.ios.tsx. Only haptics need native code.
+// iosToastStore.ts, and ToastHost.ios.tsx. Only haptics need native code.
 - (void)show:(NSDictionary *)options
 {
   (void)options;

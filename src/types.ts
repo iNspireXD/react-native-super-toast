@@ -119,7 +119,7 @@ export type PromiseOptions<T> = ToastOptions & {
   error: string | ((error: unknown) => string);
 };
 
-export type ToasterToastOptions = {
+export type ToastHostToastOptions = {
   style?: ToastViewStyle;
   titleStyle?: ToastTextStyle;
   descriptionStyle?: ToastTextStyle;
@@ -129,7 +129,7 @@ export type ToasterToastOptions = {
   cancelButtonTextStyle?: ToastTextStyle;
 } & Partial<Record<ToastVariant, ToastViewStyle>>;
 
-export type ToasterProps = {
+export type ToastHostProps = {
   /** Defaults to 'top-center'. */
   position?: ToastPosition;
   /** Defaults to 'system'. */
@@ -151,5 +151,5 @@ export type ToasterProps = {
   enableStacking?: boolean;
   haptic?: boolean;
   icons?: Partial<Record<Exclude<ToastVariant, 'default'>, ToastIcon>>;
-  toastOptions?: ToasterToastOptions;
+  toastOptions?: ToastHostToastOptions;
 };

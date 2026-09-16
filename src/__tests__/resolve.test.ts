@@ -1,9 +1,9 @@
 import { afterEach, expect, it } from '@jest/globals';
 
 import { computeLayout } from '../layout';
-import { resolveToast, setToasterConfig } from '../resolve';
+import { resolveToast, setToastHostConfig } from '../resolve';
 
-afterEach(() => setToasterConfig({}));
+afterEach(() => setToastHostConfig({}));
 
 it('uses the light palette by default', () => {
   const resolved = resolveToast('1', 'Hello', 'default', {});
@@ -25,8 +25,8 @@ it('uses the light palette by default', () => {
   expect(resolved.action).toBeUndefined();
 });
 
-it('applies theme, rich colors, and toaster settings', () => {
-  setToasterConfig({
+it('applies theme, rich colors, and host settings', () => {
+  setToastHostConfig({
     theme: 'dark',
     richColors: true,
     closeButton: true,
@@ -55,8 +55,8 @@ it('applies theme, rich colors, and toaster settings', () => {
   ).toBe('#ffffff');
 });
 
-it('merges styles from the toaster, variant, and toast in order', () => {
-  setToasterConfig({
+it('merges styles from the host, variant, and toast in order', () => {
+  setToastHostConfig({
     toastOptions: {
       style: { padding: 10, borderRadius: 8 },
       success: { backgroundColor: '#00ff00' },

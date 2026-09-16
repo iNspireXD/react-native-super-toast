@@ -21,7 +21,7 @@ function activeToasts() {
 
 beforeEach(removeAll);
 
-it('shows each variant with sonner defaults', () => {
+it('shows each variant with the default options', () => {
   const id = toast.success('Saved', { description: 'All good' });
 
   expect(activeToasts()).toHaveLength(1);

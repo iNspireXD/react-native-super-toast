@@ -1,11 +1,9 @@
 # react-native-super-toast
 
-Sonner-style toasts for React Native that render above everything, including
-native modals and bottom sheets.
+Native toasts for React Native that render above everything, including native
+modals and bottom sheets.
 
-- The API follows [sonner](https://sonner.emilkowal.ski/) and
-  [sonner-native](https://github.com/gunnartorfis/sonner-native): `toast()` and
-  `<Toaster />`
+- A small imperative `toast()` API with a single `<ToastHost />`
 - `success`, `error`, `warning`, `info`, `loading`, and `promise` variants
 - Title, description, action, and cancel buttons
 - Light, dark, and system themes, with optional rich colors
@@ -26,16 +24,16 @@ npx pod-install
 
 ## Setup
 
-Mount `Toaster` once near the root of the app.
+Mount `ToastHost` once near the root of the app.
 
 ```tsx
-import { Toaster } from 'react-native-super-toast';
+import { ToastHost } from 'react-native-super-toast';
 
 export default function App() {
   return (
     <>
       <YourApp />
-      <Toaster />
+      <ToastHost />
     </>
   );
 }
@@ -95,42 +93,42 @@ toast.dismiss(); // dismiss all
 
 ## Toast options
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `id` | `string \| number` | Reuse an id to update a toast. |
-| `description` | `string` | Secondary text. |
-| `icon` | `ToastIcon` | Replaces the variant icon. |
-| `duration` | `number` | Milliseconds, or `Infinity`. |
-| `position` | `'top-center' \| 'bottom-center' \| 'center'` | Overrides the Toaster. |
-| `dismissible` | `boolean` | Allows swipe and close-button dismissal. Default `true`. |
-| `closeButton` | `boolean` | Shows a close button. |
-| `richColors` | `boolean` | Tinted background for variants. |
-| `invert` | `boolean` | Uses the opposite theme. |
-| `haptic` | `boolean` | Plays a light haptic when the toast appears. |
-| `action`, `cancel` | `{ label, onClick }` | Buttons below the text. |
-| `onDismiss`, `onAutoClose` | `(id) => void` | Called when the toast is dismissed or times out. |
-| `onPress` | `() => void` | Called when the toast is pressed. |
-| `style`, `styles` | `ToastViewStyle`, `ToastStyles` | See [Styling](#styling). |
-| `actionButtonStyle`, `actionButtonTextStyle`, `cancelButtonStyle`, `cancelButtonTextStyle` | styles | Button styles. |
+| Option                                                                                     | Type                                          | Description                                              |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------- | -------------------------------------------------------- |
+| `id`                                                                                       | `string \| number`                            | Reuse an id to update a toast.                           |
+| `description`                                                                              | `string`                                      | Secondary text.                                          |
+| `icon`                                                                                     | `ToastIcon`                                   | Replaces the variant icon.                               |
+| `duration`                                                                                 | `number`                                      | Milliseconds, or `Infinity`.                             |
+| `position`                                                                                 | `'top-center' \| 'bottom-center' \| 'center'` | Overrides the ToastHost.                                 |
+| `dismissible`                                                                              | `boolean`                                     | Allows swipe and close-button dismissal. Default `true`. |
+| `closeButton`                                                                              | `boolean`                                     | Shows a close button.                                    |
+| `richColors`                                                                               | `boolean`                                     | Tinted background for variants.                          |
+| `invert`                                                                                   | `boolean`                                     | Uses the opposite theme.                                 |
+| `haptic`                                                                                   | `boolean`                                     | Plays a light haptic when the toast appears.             |
+| `action`, `cancel`                                                                         | `{ label, onClick }`                          | Buttons below the text.                                  |
+| `onDismiss`, `onAutoClose`                                                                 | `(id) => void`                                | Called when the toast is dismissed or times out.         |
+| `onPress`                                                                                  | `() => void`                                  | Called when the toast is pressed.                        |
+| `style`, `styles`                                                                          | `ToastViewStyle`, `ToastStyles`               | See [Styling](#styling).                                 |
+| `actionButtonStyle`, `actionButtonTextStyle`, `cancelButtonStyle`, `cancelButtonTextStyle` | styles                                        | Button styles.                                           |
 
-## Toaster props
+## ToastHost props
 
-| Prop | Default | Description |
-| --- | --- | --- |
-| `position` | `'top-center'` | Where toasts appear. |
-| `theme` | `'system'` | `'light'`, `'dark'`, or `'system'`. |
-| `richColors` | `false` | Tinted backgrounds for variants. |
-| `invert` | `false` | Uses the opposite theme. |
-| `closeButton` | `false` | Shows a close button on every toast. |
-| `duration` | `4000` | Default duration in milliseconds. |
-| `visibleToasts` | `3` | Maximum toasts per position. Older toasts are dismissed. |
-| `gap` | `14` | Space between listed toasts. |
-| `offset` | `8` | Distance from the safe area edge. |
-| `swipeToDismissDirection` | `'up'` | `'up'` swipes towards the nearest edge; `'left'` swipes sideways. |
-| `enableStacking` | `false` | Collapses toasts into an overlapping deck. |
-| `haptic` | `false` | Default haptic setting. |
-| `icons` | — | Replaces the icon for `success`, `error`, `warning`, `info`, or `loading`. |
-| `toastOptions` | — | Default styles, including per-variant container styles. |
+| Prop                      | Default        | Description                                                                |
+| ------------------------- | -------------- | -------------------------------------------------------------------------- |
+| `position`                | `'top-center'` | Where toasts appear.                                                       |
+| `theme`                   | `'system'`     | `'light'`, `'dark'`, or `'system'`.                                        |
+| `richColors`              | `false`        | Tinted backgrounds for variants.                                           |
+| `invert`                  | `false`        | Uses the opposite theme.                                                   |
+| `closeButton`             | `false`        | Shows a close button on every toast.                                       |
+| `duration`                | `4000`         | Default duration in milliseconds.                                          |
+| `visibleToasts`           | `3`            | Maximum toasts per position. Older toasts are dismissed.                   |
+| `gap`                     | `14`           | Space between listed toasts.                                               |
+| `offset`                  | `8`            | Distance from the safe area edge.                                          |
+| `swipeToDismissDirection` | `'up'`         | `'up'` swipes towards the nearest edge; `'left'` swipes sideways.          |
+| `enableStacking`          | `false`        | Collapses toasts into an overlapping deck.                                 |
+| `haptic`                  | `false`        | Default haptic setting.                                                    |
+| `icons`                   | —              | Replaces the icon for `success`, `error`, `warning`, `info`, or `loading`. |
+| `toastOptions`            | —              | Default styles, including per-variant container styles.                    |
 
 ## Styling
 
@@ -143,7 +141,7 @@ render the same on both platforms:
   `lineHeight`
 
 ```tsx
-<Toaster
+<ToastHost
   toastOptions={{
     style: { borderRadius: 12 },
     titleStyle: { fontFamily: 'Inter' },
@@ -179,27 +177,27 @@ toast('Font icon', {
 });
 ```
 
-## Differences from sonner-native
+## Behavior notes
 
 - Toast content is data, not JSX: there is no `toast.custom`, and icons and
   buttons do not accept React elements. This lets Android render toasts in
   native windows above modals.
 - Styles are limited to the keys listed in [Styling](#styling).
 - Stacked toasts do not expand when pressed.
-- Plain `toast()` shows no icon, as in web sonner.
+- Plain `toast()` shows no icon.
 
 ## Migrating from 0.1
 
-| 0.1 | Now |
-| --- | --- |
-| `<SuperToastHost />` | `<Toaster />` |
-| `SuperToast.show({ title, message })` | `toast(title, { description })` |
-| `SuperToast.success({ ... })` | `toast.success(title, { ... })` |
-| `SuperToast.update(id, { kind: 'success', ... })` | `toast.success(title, { id, ... })` |
-| `SuperToast.dismiss(id)` / `dismissAll()` | `toast.dismiss(id)` / `toast.dismiss()` |
-| `SuperToast.configure({ ... })` | `<Toaster ... />` props |
-| `stack: true` | `<Toaster enableStacking />` |
-| `backgroundColor`, `titleColor`, `messageColor` | `style`, `styles.title`, `styles.description` |
+| 0.1                                               | Now                                           |
+| ------------------------------------------------- | --------------------------------------------- |
+| `<SuperToastHost />`                              | `<ToastHost />`                               |
+| `SuperToast.show({ title, message })`             | `toast(title, { description })`               |
+| `SuperToast.success({ ... })`                     | `toast.success(title, { ... })`               |
+| `SuperToast.update(id, { kind: 'success', ... })` | `toast.success(title, { id, ... })`           |
+| `SuperToast.dismiss(id)` / `dismissAll()`         | `toast.dismiss(id)` / `toast.dismiss()`       |
+| `SuperToast.configure({ ... })`                   | `<ToastHost ... />` props                     |
+| `stack: true`                                     | `<ToastHost enableStacking />`                |
+| `backgroundColor`, `titleColor`, `messageColor`   | `style`, `styles.title`, `styles.description` |
 
 ## Contributing
 

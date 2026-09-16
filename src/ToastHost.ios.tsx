@@ -39,8 +39,8 @@ import {
 } from './iosToastStore';
 import type { StoreToast } from './iosToastStore';
 import { computeLayout } from './layout';
-import { setToasterConfig } from './resolve';
-import type { ToastPosition, ToasterProps } from './types';
+import { setToastHostConfig } from './resolve';
+import type { ToastPosition, ToastHostProps } from './types';
 
 const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
 const ENTER_DURATION = 300;
@@ -553,8 +553,8 @@ function ToastColumn({
   );
 }
 
-export function Toaster(props: ToasterProps) {
-  setToasterConfig(props);
+export function ToastHost(props: ToastHostProps) {
+  setToastHostConfig(props);
   const { toasts } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   if (toasts.length === 0) return null;

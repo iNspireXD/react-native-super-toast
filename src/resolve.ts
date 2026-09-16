@@ -16,7 +16,7 @@ import type {
   ToastTextStyle,
   ToastVariant,
   ToastViewStyle,
-  ToasterProps,
+  ToastHostProps,
 } from './types';
 
 export const toastDefaults = {
@@ -28,10 +28,10 @@ export const toastDefaults = {
   theme: 'system',
 } as const;
 
-let toasterConfig: ToasterProps = {};
+let toastHostConfig: ToastHostProps = {};
 
-export function setToasterConfig(config: ToasterProps): void {
-  toasterConfig = config;
+export function setToastHostConfig(config: ToastHostProps): void {
+  toastHostConfig = config;
 }
 
 export function fontIcon(options: Omit<ToastFontIcon, 'type'>): ToastFontIcon {
@@ -136,7 +136,7 @@ export function normalizeIcon(
 }
 
 function resolveScheme(invert: boolean): 'light' | 'dark' {
-  const theme = toasterConfig.theme ?? toastDefaults.theme;
+  const theme = toastHostConfig.theme ?? toastDefaults.theme;
   const scheme =
     theme === 'system'
       ? Appearance.getColorScheme() === 'dark'
@@ -152,7 +152,7 @@ function resolveDuration(variant: ToastVariant, duration?: number): number {
     duration ??
     (variant === 'loading'
       ? Infinity
-      : (toasterConfig.duration ?? toastDefaults.duration));
+      : (toastHostConfig.duration ?? toastDefaults.duration));
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
@@ -162,7 +162,7 @@ export function resolveToast(
   variant: ToastVariant,
   options: ToastOptions
 ): NativeToastOptions {
-  const config = toasterConfig;
+  const config = toastHostConfig;
   const toastOptions = config.toastOptions ?? {};
   const colors =
     palettes[resolveScheme(options.invert ?? config.invert ?? false)];

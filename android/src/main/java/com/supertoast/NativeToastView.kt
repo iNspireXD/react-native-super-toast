@@ -32,7 +32,7 @@ import java.net.URL
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** The sonner-style toast card: icon, title, description, buttons, close. */
+/** Toast card with an icon, title, description, buttons, and close control. */
 @SuppressLint("ViewConstructor")
 class NativeToastView(
   context: Context,

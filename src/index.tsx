@@ -1,11 +1,13 @@
 export { toast } from './toast';
-export { Toaster } from './Toaster';
+export { ToastHost } from './ToastHost';
 export { fontIcon } from './resolve';
 
 export type {
   PromiseOptions,
   ToastAction,
   ToastFontIcon,
+  ToastHostProps,
+  ToastHostToastOptions,
   ToastIcon,
   ToastId,
   ToastImageIcon,
@@ -18,6 +20,4 @@ export type {
   ToastTheme,
   ToastVariant,
   ToastViewStyle,
-  ToasterProps,
-  ToasterToastOptions,
 } from './types';

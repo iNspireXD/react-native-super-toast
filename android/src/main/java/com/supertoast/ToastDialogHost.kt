@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
 /**
  * Presents every toast in its own non-focusable dialog window, which keeps
  * toasts above React Native modals and bottom sheets. Positioning mirrors
- * src/layout.ts and the iOS renderer in src/Toaster.ios.tsx.
+ * src/layout.ts and the iOS renderer in src/ToastHost.ios.tsx.
  */
 class ToastDialogHost(
   private val reactContext: ReactApplicationContext,

@@ -21,7 +21,7 @@ import {
   View,
 } from 'react-native';
 
-import { toast, Toaster } from 'react-native-super-toast';
+import { toast, ToastHost } from 'react-native-super-toast';
 import type {
   ToastId,
   ToastPosition,
@@ -700,7 +700,7 @@ export default function App() {
                 </BottomSheetScrollView>
               </BottomSheetModal>
 
-              <Toaster
+              <ToastHost
                 position={position}
                 theme={theme}
                 richColors={richColors}
