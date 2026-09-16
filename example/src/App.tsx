@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -20,6 +21,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 import { toast, ToastHost } from 'react-native-super-toast';
 import type {
@@ -36,8 +41,16 @@ import BottomSheet, {
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 const COLORS = {
   ink: '#171717',
@@ -51,6 +64,9 @@ const COLORS = {
 const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
 const THEMES: ToastTheme[] = ['system', 'light', 'dark'];
 const SWIPE_DIRECTIONS: ToastSwipeDirection[] = ['up', 'down', 'left', 'right'];
+const SETTINGS_BUTTON_RIGHT = 20;
+const SETTINGS_BUTTON_BOTTOM = 48;
+const SETTINGS_BUTTON_EDGE_GAP = 12;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -165,6 +181,85 @@ function SettingToggle({
         thumbColor={COLORS.white}
       />
     </View>
+  );
+}
+
+function DraggableSettingsButton({ onPress }: { onPress: () => void }) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [buttonSize, setButtonSize] = useState({ width: 0, height: 0 });
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const dragStartX = useSharedValue(0);
+  const dragStartY = useSharedValue(0);
+
+  const initialTop = windowHeight - SETTINGS_BUTTON_BOTTOM - buttonSize.height;
+  const minX =
+    buttonSize.width > 0
+      ? -(windowWidth - buttonSize.width - SETTINGS_BUTTON_RIGHT * 2)
+      : 0;
+  const minY =
+    buttonSize.height > 0
+      ? insets.top + SETTINGS_BUTTON_EDGE_GAP - initialTop
+      : 0;
+  const maxY =
+    SETTINGS_BUTTON_BOTTOM - insets.bottom - SETTINGS_BUTTON_EDGE_GAP;
+
+  useEffect(() => {
+    translateX.value = Math.max(minX, Math.min(0, translateX.value));
+    translateY.value = Math.max(minY, Math.min(maxY, translateY.value));
+  }, [maxY, minX, minY, translateX, translateY]);
+
+  const dragGesture = Gesture.Pan()
+    .minDistance(5)
+    .onStart(() => {
+      dragStartX.value = translateX.value;
+      dragStartY.value = translateY.value;
+    })
+    .onUpdate((event) => {
+      translateX.value = Math.max(
+        minX,
+        Math.min(0, dragStartX.value + event.translationX)
+      );
+      translateY.value = Math.max(
+        minY,
+        Math.min(maxY, dragStartY.value + event.translationY)
+      );
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={dragGesture}>
+      <Animated.View
+        onLayout={({ nativeEvent }) =>
+          setButtonSize({
+            width: nativeEvent.layout.width,
+            height: nativeEvent.layout.height,
+          })
+        }
+        style={[styles.settingsButtonContainer, animatedStyle]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open toast settings"
+          accessibilityHint="Drag to reposition"
+          onPress={onPress}
+          style={({ pressed }) => [
+            styles.settingsButton,
+            pressed && styles.buttonPressed,
+          ]}
+        >
+          <Text style={styles.settingsIcon}>⚙</Text>
+          <Text style={styles.settingsButtonText}>Settings</Text>
+        </Pressable>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -309,7 +404,6 @@ function ToastActionsCard({
 }
 
 export default function App() {
-  const { height: windowHeight } = useWindowDimensions();
   const [position, setPosition] = useState<ToastPosition>('top-center');
   const [theme, setTheme] = useState<ToastTheme>('system');
   const [swipeDirection, setSwipeDirection] =
@@ -318,7 +412,6 @@ export default function App() {
   const [closeButton, setCloseButton] = useState(false);
   const [enableStacking, setEnableStacking] = useState(false);
   const [expandOnPress, setExpandOnPress] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
   const systemScheme = useColorScheme();
   const darkToasts =
     theme === 'dark' || (theme === 'system' && systemScheme === 'dark');
@@ -327,6 +420,7 @@ export default function App() {
   const [pageSheetModalVisible, setPageSheetModalVisible] = useState(false);
   const [transparentModalVisible, setTransparentModalVisible] = useState(false);
   const regularSheetRef = useRef<ElementRef<typeof BottomSheet>>(null);
+  const settingsSheetRef = useRef<BottomSheetModal>(null);
   const parentModalRef = useRef<BottomSheetModal>(null);
   const nestedModalRef = useRef<BottomSheetModal>(null);
   const thirdModalRef = useRef<BottomSheetModal>(null);
@@ -444,98 +538,74 @@ export default function App() {
                 </Pressable>
               </ScrollView>
 
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open toast settings"
-                onPress={() => setSettingsVisible(true)}
-                style={({ pressed }) => [
-                  styles.settingsButton,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                <Text style={styles.settingsIcon}>⚙</Text>
-                <Text style={styles.settingsButtonText}>Settings</Text>
-              </Pressable>
+              <DraggableSettingsButton
+                onPress={() => settingsSheetRef.current?.present()}
+              />
 
-              <Modal
-                visible={settingsVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setSettingsVisible(false)}
+              <BottomSheetModal
+                ref={settingsSheetRef}
+                index={0}
+                snapPoints={['72%']}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={styles.settingsSheetBackground}
+                handleIndicatorStyle={styles.sheetHandle}
               >
-                <GestureHandlerRootView style={styles.settingsOverlay}>
-                  <SafeAreaProvider style={styles.settingsOverlay}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Close toast settings"
-                      onPress={() => setSettingsVisible(false)}
-                      style={styles.settingsBackdrop}
-                    />
-                    <SafeAreaView
-                      edges={['bottom']}
-                      style={[
-                        styles.settingsPanel,
-                        { maxHeight: windowHeight * 0.78 },
-                      ]}
-                    >
-                      <View style={styles.settingsHeader}>
-                        <Text style={styles.settingsTitle}>Settings</Text>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel="Close toast settings"
-                          onPress={() => setSettingsVisible(false)}
-                          style={styles.settingsClose}
-                        >
-                          <Text style={styles.settingsCloseText}>×</Text>
-                        </Pressable>
-                      </View>
-                      <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.settingsContent}
-                      >
-                        <SettingChoice
-                          label="Position"
-                          values={POSITIONS}
-                          value={position}
-                          onChange={setPosition}
-                        />
-                        <SettingChoice
-                          label="Theme"
-                          values={THEMES}
-                          value={theme}
-                          onChange={setTheme}
-                        />
-                        <SettingChoice
-                          label="Swipe direction"
-                          values={SWIPE_DIRECTIONS}
-                          value={swipeDirection}
-                          onChange={setSwipeDirection}
-                        />
-                        <SettingToggle
-                          label="Rich colors"
-                          value={richColors}
-                          onChange={setRichColors}
-                        />
-                        <SettingToggle
-                          label="Close button"
-                          value={closeButton}
-                          onChange={setCloseButton}
-                        />
-                        <SettingToggle
-                          label="Stacking"
-                          value={enableStacking}
-                          onChange={setEnableStacking}
-                        />
-                        <SettingToggle
-                          label="Expand stack on press"
-                          value={expandOnPress}
-                          onChange={setExpandOnPress}
-                        />
-                      </ScrollView>
-                    </SafeAreaView>
-                  </SafeAreaProvider>
-                </GestureHandlerRootView>
-              </Modal>
+                <View style={styles.settingsHeader}>
+                  <Text style={styles.settingsTitle}>Settings</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Close toast settings"
+                    onPress={() => settingsSheetRef.current?.dismiss()}
+                    style={styles.settingsClose}
+                  >
+                    <Text style={styles.settingsCloseText}>×</Text>
+                  </Pressable>
+                </View>
+                <BottomSheetScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.settingsContent}
+                >
+                  <SettingChoice
+                    label="Position"
+                    values={POSITIONS}
+                    value={position}
+                    onChange={setPosition}
+                  />
+                  <SettingChoice
+                    label="Theme"
+                    values={THEMES}
+                    value={theme}
+                    onChange={setTheme}
+                  />
+                  <SettingChoice
+                    label="Swipe direction"
+                    values={SWIPE_DIRECTIONS}
+                    value={swipeDirection}
+                    onChange={setSwipeDirection}
+                  />
+                  <SettingToggle
+                    label="Rich colors"
+                    value={richColors}
+                    onChange={setRichColors}
+                  />
+                  <SettingToggle
+                    label="Close button"
+                    value={closeButton}
+                    onChange={setCloseButton}
+                  />
+                  <SettingToggle
+                    label="Stacking"
+                    value={enableStacking}
+                    onChange={setEnableStacking}
+                  />
+                  <SettingToggle
+                    label="Expand stack on press"
+                    value={expandOnPress}
+                    onChange={setExpandOnPress}
+                  />
+                </BottomSheetScrollView>
+              </BottomSheetModal>
 
               <Modal
                 visible={pageSheetModalVisible}
@@ -785,10 +855,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dismissAllIcon: { color: COLORS.muted, fontSize: 21 },
-  settingsButton: {
+  settingsButtonContainer: {
     position: 'absolute',
-    right: 20,
-    bottom: 20,
+    right: SETTINGS_BUTTON_RIGHT,
+    bottom: SETTINGS_BUTTON_BOTTOM,
+    borderRadius: 25,
+    elevation: 6,
+    shadowColor: COLORS.ink,
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  settingsButton: {
     minHeight: 49,
     paddingHorizontal: 16,
     borderRadius: 25,
@@ -796,33 +874,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    elevation: 6,
-    shadowColor: COLORS.ink,
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
   settingsIcon: { color: COLORS.white, fontSize: 21, lineHeight: 25 },
   settingsButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-  settingsOverlay: { flex: 1, justifyContent: 'flex-end' },
-  settingsBackdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-  },
-  settingsPanel: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 18,
-    paddingBottom: 26,
-  },
   settingsHeader: {
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingTop: 6,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
@@ -841,7 +899,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   settingsCloseText: { color: COLORS.muted, fontSize: 25, lineHeight: 28 },
-  settingsContent: { paddingHorizontal: 20, paddingTop: 6 },
+  settingsContent: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 32,
+  },
   settingRow: {
     paddingVertical: 15,
     borderBottomWidth: 1,
@@ -881,6 +943,7 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   sheetBackground: { backgroundColor: COLORS.paper },
+  settingsSheetBackground: { backgroundColor: COLORS.white },
   sheetHandle: { backgroundColor: COLORS.muted, width: 36 },
   sheetContent: {
     paddingHorizontal: 20,
