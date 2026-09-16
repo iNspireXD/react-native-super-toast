@@ -214,6 +214,7 @@ export function resolveToast(
       config.swipeToDismissDirection ?? toastDefaults.swipeToDismissDirection,
     haptic: options.haptic ?? config.haptic ?? false,
     enableStacking: config.enableStacking ?? false,
+    expandOnPress: config.expandOnPress ?? false,
     visibleToasts: Math.max(
       1,
       config.visibleToasts ?? toastDefaults.visibleToasts

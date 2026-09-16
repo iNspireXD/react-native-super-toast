@@ -32,7 +32,9 @@ it('applies theme, rich colors, and host settings', () => {
     closeButton: true,
     duration: 1500,
     position: 'bottom-center',
-    swipeToDismissDirection: 'left',
+    swipeToDismissDirection: 'right',
+    enableStacking: true,
+    expandOnPress: true,
   });
 
   expect(resolveToast('1', 'Oops', 'error', {})).toMatchObject({
@@ -46,7 +48,9 @@ it('applies theme, rich colors, and host settings', () => {
     closeButton: true,
     duration: 1500,
     position: 'bottom-center',
-    swipeDirection: 'left',
+    swipeDirection: 'right',
+    enableStacking: true,
+    expandOnPress: true,
   });
 
   expect(

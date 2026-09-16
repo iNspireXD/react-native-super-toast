@@ -14,7 +14,7 @@ export type ToastPosition = 'top-center' | 'bottom-center' | 'center';
 
 export type ToastTheme = 'light' | 'dark' | 'system';
 
-export type ToastSwipeDirection = 'up' | 'left';
+export type ToastSwipeDirection = 'up' | 'down' | 'left' | 'right';
 
 export type ToastTextIcon = {
   type: 'text';
@@ -145,10 +145,12 @@ export type ToastHostProps = {
   gap?: number;
   /** Distance from the safe area edge. */
   offset?: number;
-  /** Defaults to 'up' (towards the nearest screen edge). */
+  /** Defaults to 'up'. */
   swipeToDismissDirection?: ToastSwipeDirection;
   /** Collapses concurrent toasts into an overlapping deck. */
   enableStacking?: boolean;
+  /** Expands a collapsed stack when its front toast is pressed. */
+  expandOnPress?: boolean;
   haptic?: boolean;
   icons?: Partial<Record<Exclude<ToastVariant, 'default'>, ToastIcon>>;
   toastOptions?: ToastHostToastOptions;

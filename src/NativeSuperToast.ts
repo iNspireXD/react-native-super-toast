@@ -56,6 +56,7 @@ export type NativeToastOptions = {
   swipeDirection: string;
   haptic: boolean;
   enableStacking: boolean;
+  expandOnPress: boolean;
   visibleToasts: number;
   gap: number;
   /** Distance from the safe area edge. Platform default when omitted. */

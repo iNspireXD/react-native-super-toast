@@ -59,6 +59,7 @@ class ToastDialogHost(
   }
 
   private val entries = mutableListOf<Entry>()
+  private val expandedPositions = mutableSetOf<String>()
   private val mainHandler = Handler(Looper.getMainLooper())
   private val easeOutQuart = PathInterpolator(0.165f, 0.84f, 0.44f, 1f)
   private val easeInOutCubic = PathInterpolator(0.645f, 0.045f, 0.355f, 1f)
@@ -180,7 +181,23 @@ class ToastDialogHost(
   }
 
   private fun listenerFor(id: String) = object : NativeToastView.Listener {
-    override fun onPress() = emitEvent(id, "press")
+    override fun onPress() {
+      val entry = activeEntry(id) ?: return
+      val siblings = entries.count {
+        !it.dismissing && it.config.position == entry.config.position
+      }
+      if (
+        entry.config.enableStacking &&
+        entry.config.expandOnPress &&
+        entry.config.position !in expandedPositions &&
+        siblings > 1
+      ) {
+        expandedPositions.add(entry.config.position)
+        layoutIfPossible()
+        return
+      }
+      emitEvent(id, "press")
+    }
 
     override fun onAction() {
       val entry = activeEntry(id) ?: return
@@ -208,11 +225,12 @@ class ToastDialogHost(
     override fun onSwipeMove(offsetPx: Float) {
       val entry = activeEntry(id) ?: return
       val window = entry.dialog.window ?: return
+      val translation = entry.view.swipeTranslation(offsetPx)
       val distance = if (entry.view.swipesHorizontally) {
-        setWindowPosition(window, x = offsetPx.roundToInt())
+        setWindowPosition(window, x = translation.roundToInt())
         screenWidthPx().toFloat()
       } else {
-        setWindowPosition(window, y = entry.restingY + offsetPx.roundToInt())
+        setWindowPosition(window, y = entry.restingY + translation.roundToInt())
         dp(60f).toFloat()
       }
       entry.container.alpha = (1f + offsetPx / distance).coerceIn(0f, 1f)
@@ -261,7 +279,14 @@ class ToastDialogHost(
     // Newest first, matching computeLayout in src/layout.ts.
     val active = entries.filter { !it.dismissing && it.config.position == position }.asReversed()
     val front = active.firstOrNull() ?: return
-    val stacking = front.config.enableStacking
+    if (
+      active.size <= 1 ||
+      !front.config.enableStacking ||
+      !front.config.expandOnPress
+    ) {
+      expandedPositions.remove(position)
+    }
+    val stacking = front.config.enableStacking && position !in expandedPositions
     val gap = dp(front.config.gapDp)
     val frontHeight = front.view.height
     var cursor = 0
@@ -365,8 +390,17 @@ class ToastDialogHost(
     }
     val swipedVertically = startY != entry.restingY
     val distance = dp(if (hasSiblings && !swipedVertically) 8f else 150f)
-    val direction = if (entry.config.position == "center") 1 else -1
-    val targetX = if (startX < 0) -screenWidthPx() else startX
+    val direction = when {
+      startY < entry.restingY -> -1
+      startY > entry.restingY -> 1
+      entry.config.position == "center" -> 1
+      else -> -1
+    }
+    val targetX = when {
+      startX < 0 -> -screenWidthPx()
+      startX > 0 -> screenWidthPx()
+      else -> 0
+    }
 
     setTouchable(window, false)
     animate(
@@ -400,6 +434,11 @@ class ToastDialogHost(
     }
 
     if (emitRemoved) emitEvent(entry.config.id, "removed")
+
+    val remainingAtPosition = entries.count {
+      !it.dismissing && it.config.position == entry.config.position
+    }
+    if (remainingAtPosition <= 1) expandedPositions.remove(entry.config.position)
 
     if (entries.isEmpty()) {
       cancelPendingZOrderMaintenance()

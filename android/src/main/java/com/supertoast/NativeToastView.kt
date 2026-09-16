@@ -59,7 +59,17 @@ class NativeToastView(
   private var wiggleAnimator: ValueAnimator? = null
 
   val swipesHorizontally: Boolean
-    get() = config.swipeDirection == "left"
+    get() = config.swipeDirection == "left" || config.swipeDirection == "right"
+
+  fun swipeTranslation(offsetPx: Float): Float {
+    val screenTranslation =
+      if (config.swipeDirection == "right" || config.swipeDirection == "down") -offsetPx else offsetPx
+    return if (!swipesHorizontally && config.position == "bottom-center") {
+      -screenTranslation
+    } else {
+      screenTranslation
+    }
+  }
 
   init {
     orientation = HORIZONTAL
@@ -463,10 +473,11 @@ class NativeToastView(
   }
 
   private fun swipeOffset(event: MotionEvent): Float {
-    val raw = when {
-      swipesHorizontally -> event.rawX - downX
-      config.position == "bottom-center" -> downY - event.rawY
-      else -> event.rawY - downY
+    val axisOffset = if (swipesHorizontally) event.rawX - downX else event.rawY - downY
+    val raw = if (config.swipeDirection == "right" || config.swipeDirection == "down") {
+      -axisOffset
+    } else {
+      axisOffset
     }
     if (raw < 0f) return raw
 

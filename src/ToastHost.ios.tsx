@@ -40,7 +40,16 @@ import {
 import type { StoreToast } from './iosToastStore';
 import { computeLayout } from './layout';
 import { setToastHostConfig } from './resolve';
-import type { ToastPosition, ToastHostProps } from './types';
+import {
+  isHorizontalSwipe,
+  normalizeSwipeOffset,
+  swipeTranslation,
+} from './swipe';
+import type {
+  ToastPosition,
+  ToastHostProps,
+  ToastSwipeDirection,
+} from './types';
 
 const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
 const ENTER_DURATION = 300;
@@ -139,6 +148,7 @@ type ToastCardProps = {
   depth: number;
   stacked: boolean;
   hasSiblings: boolean;
+  onCardPress: () => void;
   reportHeight: (key: number, height: number) => void;
 };
 
@@ -150,14 +160,14 @@ function ToastCard({
   depth,
   stacked,
   hasSiblings,
+  onCardPress,
   reportHeight,
 }: ToastCardProps) {
   const { key, options, dismissing, revision, wiggle } = toast;
   const { id, duration, dismissible } = options;
   const { width: windowWidth } = useWindowDimensions();
-  const horizontalSwipe = options.swipeDirection === 'left';
-  // Converts "towards the dismiss edge is negative" into screen coordinates.
-  const edgeSign = position === 'bottom-center' ? -1 : 1;
+  const swipeDirection = options.swipeDirection as ToastSwipeDirection;
+  const horizontalSwipe = isHorizontalSwipe(swipeDirection);
 
   const opacity = useRef(new Animated.Value(0)).current;
   const offset = useRef(
@@ -309,7 +319,7 @@ function ToastCard({
 
   const panResponder = useMemo(() => {
     const swipeValue = (dx: number, dy: number) => {
-      const raw = horizontalSwipe ? dx : dy * edgeSign;
+      const raw = normalizeSwipeOffset(swipeDirection, dx, dy);
       return raw < 0 ? raw : elasticResistance(raw);
     };
 
@@ -333,7 +343,7 @@ function ToastCard({
       onPanResponderMove: (_, { dx, dy }) => swipe.setValue(swipeValue(dx, dy)),
       onPanResponderRelease: (_, { dx, dy, vx, vy }) => {
         const value = swipeValue(dx, dy);
-        const velocity = horizontalSwipe ? vx : vy * edgeSign;
+        const velocity = normalizeSwipeOffset(swipeDirection, vx, vy);
         const shouldDismiss =
           velocity < -0.8 ||
           (horizontalSwipe ? value < -windowWidth * 0.25 : value < -20);
@@ -357,12 +367,12 @@ function ToastCard({
     });
   }, [
     dismissible,
-    edgeSign,
     horizontalSwipe,
     id,
     pauseTimer,
     resumeTimer,
     swipe,
+    swipeDirection,
     windowWidth,
   ]);
 
@@ -394,8 +404,18 @@ function ToastCard({
             { translateY: layoutY },
             { translateY: offset },
             horizontalSwipe
-              ? { translateX: swipe }
-              : { translateY: Animated.multiply(swipe, edgeSign) },
+              ? {
+                  translateX: Animated.multiply(
+                    swipe,
+                    swipeTranslation(swipeDirection, 1)
+                  ),
+                }
+              : {
+                  translateY: Animated.multiply(
+                    swipe,
+                    swipeTranslation(swipeDirection, 1)
+                  ),
+                },
             { scale: Animated.multiply(stackScale, wiggleScale) },
           ],
         },
@@ -410,7 +430,7 @@ function ToastCard({
         <Pressable
           accessibilityLabel={label}
           accessibilityRole="alert"
-          onPress={() => press(id)}
+          onPress={onCardPress}
           style={[styles.card, options.style]}
         >
           <View
@@ -482,18 +502,20 @@ function ToastColumn({
   toasts: StoreToast[];
 }) {
   const [heights, setHeights] = useState<Record<number, number>>({});
+  const [expanded, setExpanded] = useState(false);
   const active = useMemo(
     () => toasts.filter((toast) => !toast.dismissing).reverse(),
     [toasts]
   );
   const settings = (active[0] ?? toasts[toasts.length - 1]!).options;
+  const stacking = settings.enableStacking && !expanded;
   const frontHeight = active[0] ? (heights[active[0].key] ?? 0) : 0;
   const layout = computeLayout(
     active.map((toast) => ({
       id: String(toast.key),
       height: heights[toast.key] ?? 0,
     })),
-    { enableStacking: settings.enableStacking, gap: settings.gap }
+    { enableStacking: stacking, gap: settings.gap }
   );
 
   const reportHeight = useCallback((key: number, height: number) => {
@@ -513,6 +535,16 @@ function ToastColumn({
       return next;
     });
   }, [toasts]);
+
+  useEffect(() => {
+    if (
+      !settings.enableStacking ||
+      !settings.expandOnPress ||
+      active.length <= 1
+    ) {
+      setExpanded(false);
+    }
+  }, [active.length, settings.enableStacking, settings.expandOnPress]);
 
   const edge = settings.offset ?? DEFAULT_OFFSET;
   const anchor: ViewStyle =
@@ -543,8 +575,15 @@ function ToastColumn({
             translateY={translateY}
             scale={target?.scale ?? 1}
             depth={target?.depth ?? 0}
-            stacked={settings.enableStacking}
+            stacked={stacking}
             hasSiblings={active.some((other) => other !== toast)}
+            onCardPress={() => {
+              if (settings.expandOnPress && stacking && active.length > 1) {
+                setExpanded(true);
+              } else {
+                press(toast.options.id);
+              }
+            }}
             reportHeight={reportHeight}
           />
         );

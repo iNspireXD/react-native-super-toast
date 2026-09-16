@@ -50,7 +50,7 @@ const COLORS = {
 
 const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
 const THEMES: ToastTheme[] = ['system', 'light', 'dark'];
-const SWIPE_DIRECTIONS: ToastSwipeDirection[] = ['up', 'left'];
+const SWIPE_DIRECTIONS: ToastSwipeDirection[] = ['up', 'down', 'left', 'right'];
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -317,6 +317,7 @@ export default function App() {
   const [richColors, setRichColors] = useState(false);
   const [closeButton, setCloseButton] = useState(false);
   const [enableStacking, setEnableStacking] = useState(false);
+  const [expandOnPress, setExpandOnPress] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const systemScheme = useColorScheme();
   const darkToasts =
@@ -525,6 +526,11 @@ export default function App() {
                           value={enableStacking}
                           onChange={setEnableStacking}
                         />
+                        <SettingToggle
+                          label="Expand stack on press"
+                          value={expandOnPress}
+                          onChange={setExpandOnPress}
+                        />
                       </ScrollView>
                     </SafeAreaView>
                   </SafeAreaProvider>
@@ -706,6 +712,7 @@ export default function App() {
                 richColors={richColors}
                 closeButton={closeButton}
                 enableStacking={enableStacking}
+                expandOnPress={expandOnPress}
                 swipeToDismissDirection={swipeDirection}
               />
             </SafeAreaView>

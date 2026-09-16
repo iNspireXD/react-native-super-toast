@@ -124,8 +124,9 @@ toast.dismiss(); // dismiss all
 | `visibleToasts`           | `3`            | Maximum toasts per position. Older toasts are dismissed.                   |
 | `gap`                     | `14`           | Space between listed toasts.                                               |
 | `offset`                  | `8`            | Distance from the safe area edge.                                          |
-| `swipeToDismissDirection` | `'up'`         | `'up'` swipes towards the nearest edge; `'left'` swipes sideways.          |
+| `swipeToDismissDirection` | `'up'`         | Dismiss direction: `'up'`, `'down'`, `'left'`, or `'right'`.               |
 | `enableStacking`          | `false`        | Collapses toasts into an overlapping deck.                                 |
+| `expandOnPress`           | `false`        | Expands a collapsed stack when its front toast is pressed.                 |
 | `haptic`                  | `false`        | Default haptic setting.                                                    |
 | `icons`                   | —              | Replaces the icon for `success`, `error`, `warning`, `info`, or `loading`. |
 | `toastOptions`            | —              | Default styles, including per-variant container styles.                    |
@@ -183,7 +184,6 @@ toast('Font icon', {
   buttons do not accept React elements. This lets Android render toasts in
   native windows above modals.
 - Styles are limited to the keys listed in [Styling](#styling).
-- Stacked toasts do not expand when pressed.
 - Plain `toast()` shows no icon.
 
 ## Migrating from 0.1
