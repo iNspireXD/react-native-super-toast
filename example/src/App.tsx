@@ -1,7 +1,6 @@
 import {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -10,6 +9,7 @@ import {
 import type { ElementRef, ReactNode } from 'react';
 import {
   Modal,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -266,7 +266,7 @@ function DraggableSettingsButton({ onPress }: { onPress: () => void }) {
 // Image icons are not themed natively, so tint them to match the toast theme.
 const IconColorContext = createContext<string>(COLORS.ink);
 
-function useToastDemos(source: string, iconColor: string) {
+function useShopToasts(iconColor: string) {
   const lastId = useRef<ToastId | null>(null);
   const bellIcon = useMemo(
     () =>
@@ -283,66 +283,90 @@ function useToastDemos(source: string, iconColor: string) {
   };
 
   return {
-    plain: () => remember(toast('Event created')),
-    loading: () => remember(toast.loading('Syncing data…', { duration: 2500 })),
-    description: () =>
+    copiedCode: () => remember(toast('Discount code copied')),
+    refreshOrders: () =>
+      remember(toast.loading('Refreshing your orders…', { duration: 2500 })),
+    addressSaved: () =>
       remember(
-        toast('Event created', {
-          description: `Created from ${source}`,
+        toast.success('Delivery address updated', {
+          description: '42 Willow Street, Portland',
         })
       ),
-    success: () =>
-      remember(toast.success('Changes saved', { description: source })),
-    error: () => remember(toast.error('Server unavailable', { haptic: true })),
-    warning: () =>
-      remember(toast.warning('Storage almost full', { description: '92%' })),
-    info: () => remember(toast.info('Update available', { closeButton: true })),
-    action: () =>
+    preferencesSaved: () =>
       remember(
-        toast('Message archived', {
+        toast.success('Preferences saved', {
+          description: 'We’ll only send important order updates.',
+        })
+      ),
+    paymentError: () =>
+      remember(
+        toast.error('Payment couldn’t be completed', {
+          description: 'Check your card details and try again.',
+          haptic: true,
+        })
+      ),
+    lowStock: () =>
+      remember(
+        toast.warning('Only 2 left in your size', {
+          description: 'Add it to your bag before it’s gone.',
+        })
+      ),
+    freeDelivery: () =>
+      remember(
+        toast.info('Free delivery unlocked', {
+          description: 'Your order qualifies for free standard shipping.',
+          closeButton: true,
+        })
+      ),
+    removeItem: () =>
+      remember(
+        toast('Everyday Tee removed', {
           action: {
             label: 'Undo',
-            onClick: () => toast.success('Message restored'),
+            onClick: () => toast.success('Everyday Tee is back in your bag'),
           },
         })
       ),
-    confirm: () =>
+    clearBag: () =>
       remember(
-        toast('Delete 3 files?', {
-          description: 'This cannot be undone.',
+        toast('Clear your bag?', {
+          description: 'This will remove all 3 items.',
           duration: Infinity,
           action: {
-            label: 'Delete',
-            onClick: () => toast.success('Files deleted'),
+            label: 'Clear',
+            onClick: () => toast.success('Your bag is now empty'),
           },
-          cancel: { label: 'Keep', onClick: () => toast.info('Files kept') },
+          cancel: {
+            label: 'Keep items',
+            onClick: () => toast.info('Your bag is unchanged'),
+          },
         })
       ),
-    promise: (shouldFail: boolean) =>
+    placeOrder: (shouldFail: boolean) =>
       remember(
         toast.promise(
           wait(2000).then(() => {
-            if (shouldFail) throw new Error('Upload rejected');
-            return 'report.pdf';
+            if (shouldFail) throw new Error('Your card was declined');
+            return '#NS-2048';
           }),
           {
-            loading: 'Uploading…',
-            success: (file) => `${file} uploaded`,
+            loading: 'Placing your order…',
+            success: (orderNumber) => `Order ${orderNumber} confirmed`,
             error: (reason) => (reason as Error).message,
           }
         )
       ),
-    icon: () =>
+    trackOrder: () =>
       remember(
-        toast('New message', {
-          description: `A notification from ${source}.`,
+        toast('Your order is on the way', {
+          description: 'Arriving tomorrow between 2–4 PM.',
           icon: { type: 'image', source: bellIcon, size: 20 },
         })
       ),
-    pngIcon: () =>
+    addToBag: () =>
       remember(
-        toast('Added to cart', {
-          description: 'Super Toast T-Shirt is in your cart.',
+        toast.success('Added to your bag', {
+          description: 'Everyday Tee · Black · Medium',
           icon: {
             type: 'image',
             source: require('../assets/shopping-cart.png'),
@@ -351,10 +375,10 @@ function useToastDemos(source: string, iconColor: string) {
           },
         })
       ),
-    styled: () =>
+    welcomeOffer: () =>
       remember(
-        toast.success('Custom typography', {
-          description: 'Fonts, colors, and radius come from styles.',
+        toast.success('Welcome back, Maya', {
+          description: 'You have 450 points ready to spend.',
           style: { backgroundColor: COLORS.ink, borderRadius: 10 },
           styles: {
             title: { color: COLORS.white, fontFamily: 'Karla-Bold' },
@@ -365,41 +389,26 @@ function useToastDemos(source: string, iconColor: string) {
       ),
     wiggle: () => {
       if (lastId.current !== null) toast.wiggle(lastId.current);
-      else remember(toast.info('Show a toast first'));
+      else remember(toast.info('Your notifications will appear here'));
     },
   };
 }
 
-function ToastActionsCard({
-  source,
-  onOpenNested,
-  exampleCount = 4,
-}: {
-  source: string;
-  onOpenNested?: () => void;
-  exampleCount?: number;
-}) {
-  const demos = useToastDemos(source, useContext(IconColorContext));
-  const examples = [
-    { label: 'Success', onPress: demos.success },
-    { label: 'With action', onPress: demos.action },
-    { label: 'Promise', onPress: () => demos.promise(false) },
-    { label: 'Vector icon', onPress: demos.icon },
-  ].slice(0, exampleCount);
-
+function BagSummary({ onCheckout }: { onCheckout: () => void }) {
   return (
-    <Section title="Examples">
-      {examples.map((example) => (
-        <ActionButton key={example.label} onPress={example.onPress}>
-          {example.label}
-        </ActionButton>
-      ))}
-      {onOpenNested ? (
-        <ActionButton onPress={onOpenNested} tone="dark">
-          Open nested sheet
-        </ActionButton>
-      ) : null}
-    </Section>
+    <View style={styles.bagSummary}>
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryLabel}>Subtotal · 3 items</Text>
+        <Text style={styles.summaryValue}>$128.00</Text>
+      </View>
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryLabel}>Delivery</Text>
+        <Text style={styles.freeLabel}>FREE</Text>
+      </View>
+      <ActionButton onPress={onCheckout} tone="dark">
+        Checkout · $128.00
+      </ActionButton>
+    </View>
   );
 }
 
@@ -425,13 +434,13 @@ export default function App() {
   const nestedModalRef = useRef<BottomSheetModal>(null);
   const thirdModalRef = useRef<BottomSheetModal>(null);
 
-  const demos = useToastDemos('main screen', iconColor);
+  const shopToasts = useShopToasts(iconColor);
 
   const showBurst = useCallback(() => {
     [
-      'Changes saved',
-      'New message received',
-      'Background sync complete',
+      'Order confirmed',
+      'Payment receipt emailed',
+      '450 reward points earned',
     ].forEach((title, index) => setTimeout(() => toast(title), index * 350));
   }, []);
 
@@ -457,70 +466,126 @@ export default function App() {
                 showsVerticalScrollIndicator={false}
               >
                 <PageHeader
-                  title="Super Toast"
-                  subtitle="Tap an example to preview."
+                  title="Northstar Supply"
+                  subtitle="Everyday goods, thoughtfully made."
                 />
 
-                <Section title="Variants">
-                  <ActionButton onPress={demos.plain}>Default</ActionButton>
-                  <ActionButton onPress={demos.description}>
-                    With description
-                  </ActionButton>
-                  <ActionButton onPress={demos.success}>Success</ActionButton>
-                  <ActionButton onPress={demos.error}>Error</ActionButton>
-                  <ActionButton onPress={demos.warning}>Warning</ActionButton>
-                  <ActionButton onPress={demos.info}>Info</ActionButton>
-                  <ActionButton onPress={demos.loading}>Loading</ActionButton>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="View member rewards"
+                  onPress={shopToasts.welcomeOffer}
+                  style={({ pressed }) => [
+                    styles.hero,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <View style={styles.heroCopy}>
+                    <Text style={styles.eyebrow}>MEMBER WEEKEND</Text>
+                    <Text style={styles.heroTitle}>
+                      20% off your everyday edit
+                    </Text>
+                    <Text style={styles.heroLink}>Explore your rewards →</Text>
+                  </View>
+                  <Text style={styles.heroMark}>N</Text>
+                </Pressable>
+
+                <Section title="FOR YOU">
+                  <View style={styles.productCard}>
+                    <View style={styles.productVisual}>
+                      <Text style={styles.productEmoji}>👕</Text>
+                      <View style={styles.favoriteBadge}>
+                        <Text style={styles.favoriteText}>♡</Text>
+                      </View>
+                    </View>
+                    <View style={styles.productDetails}>
+                      <View style={styles.productHeading}>
+                        <View style={styles.productNameWrap}>
+                          <Text style={styles.productName}>Everyday Tee</Text>
+                          <Text style={styles.productMeta}>Black · Medium</Text>
+                        </View>
+                        <Text style={styles.productPrice}>$38</Text>
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Add Everyday Tee to bag"
+                        onPress={shopToasts.addToBag}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          pressed && styles.buttonPressed,
+                        ]}
+                      >
+                        <Image
+                          source={require('../assets/shopping-cart.png')}
+                          style={styles.cartIcon}
+                        />
+                        <Text style={styles.primaryButtonText}>Add to bag</Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 </Section>
 
-                <Section title="Interactions">
-                  <ActionButton onPress={demos.action}>Action</ActionButton>
-                  <ActionButton onPress={demos.confirm}>
-                    Action + cancel
+                <Section title="YOUR ORDER">
+                  <View style={styles.orderCard}>
+                    <View style={styles.orderTopRow}>
+                      <View>
+                        <Text style={styles.orderStatus}>OUT FOR DELIVERY</Text>
+                        <Text style={styles.orderTitle}>Arriving tomorrow</Text>
+                      </View>
+                      <Text style={styles.orderNumber}>#NS-1934</Text>
+                    </View>
+                    <View style={styles.progressTrack}>
+                      <View style={styles.progressFill} />
+                    </View>
+                    <View style={styles.inlineActions}>
+                      <Pressable onPress={shopToasts.trackOrder}>
+                        <Text style={styles.textAction}>Track package</Text>
+                      </Pressable>
+                      <Pressable onPress={shopToasts.refreshOrders}>
+                        <Text style={styles.textAction}>Refresh</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </Section>
+
+                <Section title="QUICK ACTIONS">
+                  <ActionButton onPress={shopToasts.copiedCode}>
+                    Copy code WEEKEND20
                   </ActionButton>
-                  <ActionButton onPress={() => demos.promise(false)}>
-                    Promise success
+                  <ActionButton onPress={shopToasts.freeDelivery}>
+                    Check delivery offer
                   </ActionButton>
-                  <ActionButton onPress={() => demos.promise(true)}>
-                    Promise failure
+                  <ActionButton onPress={shopToasts.lowStock}>
+                    Check size availability
                   </ActionButton>
-                  <ActionButton onPress={demos.wiggle}>
-                    Wiggle last toast
+                  <ActionButton onPress={shopToasts.paymentError}>
+                    Retry last payment
                   </ActionButton>
                   <ActionButton onPress={showBurst}>
-                    Show three toasts
+                    Show notification stack
+                  </ActionButton>
+                  <ActionButton onPress={shopToasts.wiggle}>
+                    Wiggle latest notification
                   </ActionButton>
                 </Section>
 
-                <Section title="Icons & styles">
-                  <ActionButton onPress={demos.pngIcon}>PNG icon</ActionButton>
-                  <ActionButton onPress={demos.icon}>Vector icon</ActionButton>
-                  <ActionButton onPress={demos.styled}>
-                    Custom styles
-                  </ActionButton>
-                </Section>
-
-                <Section title="Native modals">
+                <Section title="ACCOUNT">
                   <ActionButton onPress={() => setPageSheetModalVisible(true)}>
-                    Open page sheet
+                    Delivery & notifications
                   </ActionButton>
                   <ActionButton
                     onPress={() => setTransparentModalVisible(true)}
                   >
-                    Open transparent modal
+                    Manage saved payment
                   </ActionButton>
-                </Section>
-
-                <Section title="Bottom sheets">
                   <ActionButton
                     onPress={() => regularSheetRef.current?.snapToIndex(0)}
                   >
-                    Open regular sheet
+                    View your bag
                   </ActionButton>
                   <ActionButton
                     onPress={() => parentModalRef.current?.present()}
                   >
-                    Open sheet modal
+                    Start checkout
                   </ActionButton>
                 </Section>
 
@@ -533,7 +598,7 @@ export default function App() {
                     pressed && styles.buttonPressed,
                   ]}
                 >
-                  <Text style={styles.dismissAllText}>Dismiss all</Text>
+                  <Text style={styles.dismissAllText}>Clear notifications</Text>
                   <Text style={styles.dismissAllIcon}>×</Text>
                 </Pressable>
               </ScrollView>
@@ -618,15 +683,27 @@ export default function App() {
                     <SafeAreaView style={styles.modalRoot}>
                       <ScrollView contentContainerStyle={styles.content}>
                         <PageHeader
-                          title="Page sheet"
-                          subtitle="Toast above a native modal."
+                          title="Your preferences"
+                          subtitle="Keep delivery details and updates current."
                         />
-                        <ToastActionsCard source="Page sheet" />
+                        <Section title="DELIVERY">
+                          <ActionButton onPress={shopToasts.addressSaved}>
+                            Save home address
+                          </ActionButton>
+                          <ActionButton onPress={shopToasts.freeDelivery}>
+                            Check delivery benefits
+                          </ActionButton>
+                        </Section>
+                        <Section title="NOTIFICATIONS">
+                          <ActionButton onPress={shopToasts.preferencesSaved}>
+                            Save notification preferences
+                          </ActionButton>
+                        </Section>
                         <ActionButton
                           onPress={() => setPageSheetModalVisible(false)}
                           tone="dark"
                         >
-                          Close page sheet
+                          Done
                         </ActionButton>
                       </ScrollView>
                     </SafeAreaView>
@@ -644,18 +721,18 @@ export default function App() {
                 <GestureHandlerRootView style={styles.transparentBackdrop}>
                   <View style={styles.transparentModalCard}>
                     <PageHeader
-                      title="Transparent modal"
-                      subtitle="Toast above a transparent modal."
+                      title="Saved card"
+                      subtitle="Visa ending in 4242 · Expires 08/28"
                     />
                     <View style={styles.actionList}>
-                      <ActionButton onPress={demos.success}>
-                        Success
+                      <ActionButton onPress={shopToasts.preferencesSaved}>
+                        Make default
                       </ActionButton>
-                      <ActionButton onPress={demos.confirm}>
-                        Action + cancel
+                      <ActionButton onPress={shopToasts.paymentError}>
+                        Verify card
                       </ActionButton>
-                      <ActionButton onPress={() => demos.promise(false)}>
-                        Promise
+                      <ActionButton onPress={shopToasts.clearBag}>
+                        Remove saved card
                       </ActionButton>
                       <ActionButton
                         onPress={() => setTransparentModalVisible(false)}
@@ -682,16 +759,26 @@ export default function App() {
                 <BottomSheetScrollView
                   contentContainerStyle={styles.sheetContent}
                 >
-                  <PageHeader title="Bottom sheet" />
-                  <ToastActionsCard
-                    source="Regular bottom sheet"
-                    onOpenNested={() => parentModalRef.current?.present()}
+                  <PageHeader
+                    title="Your bag"
+                    subtitle="3 items reserved for the next 20 minutes."
                   />
+                  <BagSummary
+                    onCheckout={() => parentModalRef.current?.present()}
+                  />
+                  <Section title="BAG OPTIONS">
+                    <ActionButton onPress={shopToasts.removeItem}>
+                      Remove Everyday Tee
+                    </ActionButton>
+                    <ActionButton onPress={shopToasts.clearBag}>
+                      Clear bag
+                    </ActionButton>
+                  </Section>
                   <ActionButton
                     onPress={() => regularSheetRef.current?.close()}
                     tone="dark"
                   >
-                    Close sheet
+                    Continue shopping
                   </ActionButton>
                 </BottomSheetScrollView>
               </BottomSheet>
@@ -708,17 +795,29 @@ export default function App() {
                 <BottomSheetScrollView
                   contentContainerStyle={styles.sheetContent}
                 >
-                  <PageHeader title="Sheet modal" />
-                  <ToastActionsCard
-                    source="Parent sheet modal"
-                    exampleCount={3}
-                    onOpenNested={() => nestedModalRef.current?.present()}
+                  <PageHeader
+                    title="Checkout"
+                    subtitle="Express checkout · $128.00"
                   />
+                  <BagSummary onCheckout={() => shopToasts.placeOrder(false)} />
+                  <Section title="CHECKOUT DETAILS">
+                    <ActionButton
+                      onPress={() => nestedModalRef.current?.present()}
+                    >
+                      Standard delivery · Free
+                    </ActionButton>
+                    <ActionButton onPress={() => shopToasts.placeOrder(true)}>
+                      Test declined payment
+                    </ActionButton>
+                    <ActionButton onPress={showBurst}>
+                      Complete order with updates
+                    </ActionButton>
+                  </Section>
                   <ActionButton
                     onPress={() => parentModalRef.current?.dismiss()}
                     tone="dark"
                   >
-                    Close parent sheet
+                    Return to bag
                   </ActionButton>
                 </BottomSheetScrollView>
               </BottomSheetModal>
@@ -735,17 +834,28 @@ export default function App() {
                 <BottomSheetScrollView
                   contentContainerStyle={styles.sheetContent}
                 >
-                  <PageHeader title="Nested sheet" />
-                  <ToastActionsCard
-                    source="Nested sheet modal"
-                    exampleCount={2}
-                    onOpenNested={() => thirdModalRef.current?.present()}
+                  <PageHeader
+                    title="Delivery method"
+                    subtitle="Choose how you’d like to receive your order."
                   />
+                  <Section title="OPTIONS">
+                    <ActionButton onPress={shopToasts.addressSaved}>
+                      Standard · Free · 3–5 days
+                    </ActionButton>
+                    <ActionButton onPress={shopToasts.lowStock}>
+                      Express · $12 · Tomorrow
+                    </ActionButton>
+                    <ActionButton
+                      onPress={() => thirdModalRef.current?.present()}
+                    >
+                      Add delivery instructions
+                    </ActionButton>
+                  </Section>
                   <ActionButton
                     onPress={() => nestedModalRef.current?.dismiss()}
                     tone="dark"
                   >
-                    Close nested sheet
+                    Back to checkout
                   </ActionButton>
                 </BottomSheetScrollView>
               </BottomSheetModal>
@@ -762,16 +872,23 @@ export default function App() {
                 <BottomSheetScrollView
                   contentContainerStyle={styles.sheetContent}
                 >
-                  <PageHeader title="Third sheet" />
-                  <ToastActionsCard
-                    source="Triple-nested sheet"
-                    exampleCount={2}
+                  <PageHeader
+                    title="Delivery instructions"
+                    subtitle="Help the courier find a safe place."
                   />
+                  <Section title="SAVED INSTRUCTIONS">
+                    <ActionButton onPress={shopToasts.addressSaved}>
+                      Leave with reception
+                    </ActionButton>
+                    <ActionButton onPress={shopToasts.preferencesSaved}>
+                      Ring the doorbell
+                    </ActionButton>
+                  </Section>
                   <ActionButton
                     onPress={() => thirdModalRef.current?.dismiss()}
                     tone="dark"
                   >
-                    Close final sheet
+                    Save and close
                   </ActionButton>
                 </BottomSheetScrollView>
               </BottomSheetModal>
@@ -810,6 +927,40 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   subtitle: { color: COLORS.muted, fontSize: 14, lineHeight: 20 },
+  hero: {
+    minHeight: 178,
+    borderRadius: 18,
+    padding: 22,
+    overflow: 'hidden',
+    backgroundColor: COLORS.ink,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroCopy: { flex: 1, gap: 9, zIndex: 1 },
+  eyebrow: {
+    color: '#9FE2B0',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  heroTitle: {
+    maxWidth: 220,
+    color: COLORS.white,
+    fontSize: 26,
+    fontWeight: '700',
+    lineHeight: 31,
+    letterSpacing: -0.6,
+  },
+  heroLink: { color: '#D7D7D2', fontSize: 13, fontWeight: '600' },
+  heroMark: {
+    position: 'absolute',
+    right: -10,
+    bottom: -44,
+    color: '#2B2B2B',
+    fontSize: 184,
+    fontWeight: '800',
+    lineHeight: 200,
+  },
   section: { gap: 10 },
   sectionTitle: {
     color: COLORS.muted,
@@ -818,6 +969,101 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   actionList: { gap: 7 },
+  productCard: {
+    overflow: 'hidden',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.line,
+    backgroundColor: COLORS.white,
+  },
+  productVisual: {
+    height: 168,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E9E4DD',
+  },
+  productEmoji: { fontSize: 76 },
+  favoriteBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+  },
+  favoriteText: { color: COLORS.ink, fontSize: 22, lineHeight: 25 },
+  productDetails: { padding: 16, gap: 16 },
+  productHeading: { flexDirection: 'row', gap: 12 },
+  productNameWrap: { flex: 1, gap: 3 },
+  productName: { color: COLORS.ink, fontSize: 17, fontWeight: '700' },
+  productMeta: { color: COLORS.muted, fontSize: 13 },
+  productPrice: { color: COLORS.ink, fontSize: 16, fontWeight: '700' },
+  primaryButton: {
+    minHeight: 48,
+    borderRadius: 10,
+    backgroundColor: COLORS.ink,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  primaryButtonText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  cartIcon: { width: 21, height: 21, tintColor: COLORS.white },
+  orderCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.line,
+    backgroundColor: COLORS.white,
+    padding: 16,
+    gap: 16,
+  },
+  orderTopRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  orderStatus: {
+    color: '#248144',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  orderTitle: {
+    color: COLORS.ink,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  orderNumber: { color: COLORS.muted, fontSize: 12 },
+  progressTrack: {
+    height: 5,
+    overflow: 'hidden',
+    borderRadius: 3,
+    backgroundColor: COLORS.soft,
+  },
+  progressFill: {
+    width: '78%',
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#35A85A',
+  },
+  inlineActions: { flexDirection: 'row', gap: 24 },
+  textAction: { color: COLORS.ink, fontSize: 13, fontWeight: '700' },
+  bagSummary: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.line,
+    backgroundColor: COLORS.white,
+    padding: 16,
+    gap: 14,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  summaryLabel: { color: COLORS.muted, fontSize: 14 },
+  summaryValue: { color: COLORS.ink, fontSize: 14, fontWeight: '700' },
+  freeLabel: { color: '#248144', fontSize: 12, fontWeight: '800' },
   button: {
     minHeight: 49,
     borderRadius: 10,
