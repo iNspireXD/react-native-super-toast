@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Documentation 📖
+    url: https://rn-super-toast.vercel.app/docs
+    about: Read the setup guides and API reference before opening an issue.
   - name: Feature Request 💡
     url: https://github.com/iNspireXD/react-native-super-toast/discussions/new?category=ideas
     about: If you have a feature request, please create a new discussion on GitHub.

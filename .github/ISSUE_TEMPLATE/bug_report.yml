@@ -16,6 +16,8 @@ body:
       label: Before submitting a new issue
       description: Please perform simple checks first.
       options:
+        - label: I checked the [documentation](https://rn-super-toast.vercel.app/docs) for setup and usage guidance.
+          required: true
         - label: I tested using the latest version of the library, as the bug might be already fixed.
           required: true
         - label: I tested using a [supported version](https://github.com/reactwg/react-native-releases/blob/main/docs/support.md) of react native.

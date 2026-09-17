@@ -54,7 +54,7 @@
   "bugs": {
     "url": "https://github.com/iNspireXD/react-native-super-toast/issues"
   },
-  "homepage": "https://github.com/iNspireXD/react-native-super-toast#readme",
+  "homepage": "https://rn-super-toast.vercel.app/",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },

@@ -1,7 +1,22 @@
-# react-native-super-toast
+<p align="center">
+  <a href="https://rn-super-toast.vercel.app/">
+    <img src="https://raw.githubusercontent.com/iNspireXD/react-native-super-toast/main/docs/assets/super-toast-banner.png" alt="Super Toast — Toasts that render above everything." width="100%" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://rn-super-toast.vercel.app/docs">Documentation</a>
+  ·
+  <a href="https://www.npmjs.com/package/react-native-super-toast">npm</a>
+  ·
+  <a href="https://github.com/iNspireXD/react-native-super-toast/issues">Issues</a>
+</p>
 
 Native toasts for React Native that render above everything, including native
 modals and bottom sheets.
+
+For installation guides, API details, examples, and demos, visit the
+[Super Toast documentation](https://rn-super-toast.vercel.app/docs).
 
 - A small imperative `toast()` API with a single `<ToastHost />`
 - `success`, `error`, `warning`, `info`, `loading`, and `promise` variants
@@ -215,4 +230,4 @@ MIT
 
 ---
 
-Made with [create-react-native-library](https://github.com/callstack/react-native-builder-bob)
+Made by [Aswin Karki](https://github.com/iNspireXD)
