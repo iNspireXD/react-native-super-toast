@@ -54,6 +54,10 @@ const COLORS = {
   soft: '#F0F0EE',
 } as const;
 
+// Multiple snap points let every sheet be resized by dragging its handle.
+const SHEET_SNAP_POINTS = ['45%', '70%', '92%'];
+const SETTINGS_SNAP_POINTS = ['60%', '92%'];
+
 const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
 const THEMES: ToastTheme[] = ['system', 'light', 'dark'];
 const SWIPE_DIRECTIONS: ToastSwipeDirection[] = ['up', 'down', 'left', 'right'];
@@ -867,7 +871,8 @@ export default function App() {
             <BottomSheetModal
               ref={settingsSheetRef}
               index={0}
-              snapPoints={['72%']}
+              snapPoints={SETTINGS_SNAP_POINTS}
+              enableDynamicSizing={false}
               enablePanDownToClose
               backdropComponent={renderBackdrop}
               backgroundStyle={styles.settingsSheetBackground}
@@ -1062,6 +1067,8 @@ export default function App() {
             <BottomSheet
               ref={bottomSheetRef}
               index={-1}
+              snapPoints={SHEET_SNAP_POINTS}
+              enableDynamicSizing={false}
               enablePanDownToClose
               backdropComponent={
                 Platform.OS === 'android' ? undefined : renderBackdrop
@@ -1084,6 +1091,8 @@ export default function App() {
               ref={sheetModalRef}
               stackBehavior="push"
               index={0}
+              snapPoints={SHEET_SNAP_POINTS}
+              enableDynamicSizing={false}
               enablePanDownToClose
               backdropComponent={renderBackdrop}
               backgroundStyle={styles.sheetBackground}
@@ -1109,6 +1118,8 @@ export default function App() {
               ref={nestedSheetModalRef}
               stackBehavior="push"
               index={0}
+              snapPoints={SHEET_SNAP_POINTS}
+              enableDynamicSizing={false}
               enablePanDownToClose
               backdropComponent={renderBackdrop}
               backgroundStyle={styles.sheetBackground}
