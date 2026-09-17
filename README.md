@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://rn-super-toast.vercel.app/">
-    <img src="https://raw.githubusercontent.com/iNspireXD/react-native-super-toast/main/docs/assets/super-toast-banner.png" alt="Super Toast — Toasts that render above everything." width="100%" />
+    <img src="docs/assets/super-toast-banner.png" alt="Super Toast — Toasts that render above everything." width="100%" />
   </a>
 </p>
 

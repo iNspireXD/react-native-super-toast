@@ -15,6 +15,7 @@
   "files": [
     "src",
     "lib",
+    "docs/assets",
     "android",
     "ios",
     "cpp",
