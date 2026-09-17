@@ -1,4 +1,4 @@
-import { DeviceEventEmitter, processColor } from 'react-native';
+import { processColor } from 'react-native';
 
 import NativeSuperToast from './NativeSuperToast';
 import type {
@@ -9,10 +9,8 @@ import type {
 } from './NativeSuperToast';
 import type { ToastBackend, ToastEvent } from './backendTypes';
 
-const EVENT_NAME = 'SuperToastEvent';
-
-/** Converts any React Native color string to Android's `#AARRGGBB`. */
-function androidColor(value: string | undefined): string | undefined {
+/** Converts any React Native color string to `#AARRGGBB` for native parsing. */
+function nativeColor(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   const processed = processColor(value);
   if (typeof processed !== 'number') return undefined;
@@ -22,13 +20,13 @@ function androidColor(value: string | undefined): string | undefined {
 
 const box = (style: NativeBoxStyle): NativeBoxStyle => ({
   ...style,
-  backgroundColor: androidColor(style.backgroundColor),
-  borderColor: androidColor(style.borderColor),
+  backgroundColor: nativeColor(style.backgroundColor),
+  borderColor: nativeColor(style.borderColor),
 });
 
 const text = (style: NativeTextStyle): NativeTextStyle => ({
   ...style,
-  color: androidColor(style.color),
+  color: nativeColor(style.color),
 });
 
 const button = (value?: NativeToastButton): NativeToastButton | undefined =>
@@ -38,17 +36,17 @@ const button = (value?: NativeToastButton): NativeToastButton | undefined =>
     textStyle: text(value.textStyle),
   };
 
-function toAndroid(options: NativeToastOptions): NativeToastOptions {
+function toNative(options: NativeToastOptions): NativeToastOptions {
   return {
     ...options,
     icon: options.icon && {
       ...options.icon,
-      color: androidColor(options.icon.color),
-      tintColor: androidColor(options.icon.tintColor),
+      color: nativeColor(options.icon.color),
+      tintColor: nativeColor(options.icon.tintColor),
     },
-    iconColor: androidColor(options.iconColor) ?? options.iconColor,
+    iconColor: nativeColor(options.iconColor) ?? options.iconColor,
     closeButtonColor:
-      androidColor(options.closeButtonColor) ?? options.closeButtonColor,
+      nativeColor(options.closeButtonColor) ?? options.closeButtonColor,
     style: box(options.style),
     titleStyle: text(options.titleStyle),
     descriptionStyle: text(options.descriptionStyle),
@@ -58,13 +56,12 @@ function toAndroid(options: NativeToastOptions): NativeToastOptions {
 }
 
 export const backend: ToastBackend = {
-  show: (options) => NativeSuperToast.show(toAndroid(options)),
+  show: (options) => NativeSuperToast.show(toNative(options)),
   dismiss: (id) => NativeSuperToast.dismiss(id),
   wiggle: (id) => NativeSuperToast.wiggle(id),
   addListener(listener) {
-    const subscription = DeviceEventEmitter.addListener(
-      EVENT_NAME,
-      (event: ToastEvent) => listener(event)
+    const subscription = NativeSuperToast.onToastEvent((event) =>
+      listener(event as ToastEvent)
     );
     return () => subscription.remove();
   },

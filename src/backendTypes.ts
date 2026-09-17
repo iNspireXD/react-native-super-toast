@@ -15,7 +15,7 @@ export type ToastEvent = {
 
 export type ToastEventListener = (event: ToastEvent) => void;
 
-/** The platform renderer: native dialogs on Android, a JS overlay on iOS. */
+/** The native renderer: dialog windows on Android, an overlay window on iOS. */
 export type ToastBackend = {
   show(options: NativeToastOptions): void;
   dismiss(id: string | null): void;

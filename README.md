@@ -11,14 +11,14 @@ modals and bottom sheets.
 - Swipe up or left to dismiss, plus an optional close button
 - Updating a toast in place, `toast.wiggle`, haptics, and image, text, or font
   icons
-- Rendered natively on Android (dialog windows) and through
-  `FullWindowOverlay` on iOS, with no Reanimated, Gesture Handler, or SVG
+- Rendered natively on both platforms (dialog windows on Android, an overlay
+  `UIWindow` on iOS), with no Reanimated, Gesture Handler, Screens, or SVG
   dependency
 
 ## Installation
 
 ```sh
-npm install react-native-super-toast react-native-screens
+npm install react-native-super-toast
 npx pod-install
 ```
 
@@ -113,27 +113,44 @@ toast.dismiss(); // dismiss all
 
 ## ToastHost props
 
-| Prop                      | Default        | Description                                                                |
-| ------------------------- | -------------- | -------------------------------------------------------------------------- |
-| `position`                | `'top-center'` | Where toasts appear.                                                       |
-| `theme`                   | `'system'`     | `'light'`, `'dark'`, or `'system'`.                                        |
-| `richColors`              | `false`        | Tinted backgrounds for variants.                                           |
-| `invert`                  | `false`        | Uses the opposite theme.                                                   |
-| `closeButton`             | `false`        | Shows a close button on every toast.                                       |
-| `duration`                | `4000`         | Default duration in milliseconds.                                          |
-| `visibleToasts`           | `3`            | Maximum toasts per position. Older toasts are dismissed.                   |
-| `gap`                     | `14`           | Space between listed toasts.                                               |
-| `offset`                  | `8`            | Distance from the safe area edge.                                          |
-| `swipeToDismissDirection` | `'up'`         | Dismiss direction: `'up'`, `'down'`, `'left'`, or `'right'`.               |
-| `enableStacking`          | `false`        | Collapses toasts into an overlapping deck.                                 |
-| `expandOnPress`           | `false`        | Expands a collapsed stack when its front toast is pressed.                 |
-| `haptic`                  | `false`        | Default haptic setting.                                                    |
-| `icons`                   | —              | Replaces the icon for `success`, `error`, `warning`, `info`, or `loading`. |
-| `toastOptions`            | —              | Default styles, including per-variant container styles.                    |
+| Prop                      | Default        | Description                                                                             |
+| ------------------------- | -------------- | --------------------------------------------------------------------------------------- |
+| `position`                | `'top-center'` | Where toasts appear.                                                                    |
+| `theme`                   | `'system'`     | `'light'`, `'dark'`, or `'system'`.                                                     |
+| `richColors`              | `false`        | Tinted backgrounds for variants.                                                        |
+| `invert`                  | `false`        | Uses the opposite theme.                                                                |
+| `closeButton`             | `false`        | Shows a close button on every toast.                                                    |
+| `duration`                | `4000`         | Default duration in milliseconds.                                                       |
+| `visibleToasts`           | `3`            | Maximum toasts per position. Older toasts are dismissed.                                |
+| `gap`                     | `14`           | Space between listed toasts.                                                            |
+| `offset`                  | `8`            | Distance from the safe area edge: a number or `{ top, bottom }`. See [Offset](#offset). |
+| `swipeToDismissDirection` | `'up'`         | Dismiss direction: `'up'`, `'down'`, `'left'`, or `'right'`.                            |
+| `enableStacking`          | `false`        | Collapses toasts into an overlapping deck.                                              |
+| `expandOnPress`           | `false`        | Expands a collapsed stack when its front toast is pressed.                              |
+| `haptic`                  | `false`        | Default haptic setting.                                                                 |
+| `icons`                   | —              | Replaces the icon for `success`, `error`, `warning`, `info`, or `loading`.              |
+| `toastOptions`            | —              | Default styles, including per-variant container styles.                                 |
+
+### Offset
+
+`offset` is measured from the safe area edge a toast is anchored to: down from
+the top for `top-center` toasts and up from the bottom for `bottom-center`
+toasts. `center` toasts ignore it.
+
+Pass a number to use the same distance for both edges, or an object to set each
+edge. An omitted edge keeps the default: `8`, or `16` when the device has no
+safe area inset on that edge.
+
+```tsx
+<ToastHost offset={16} />
+
+// Keep bottom toasts clear of a tab bar.
+<ToastHost offset={{ top: 8, bottom: 80 }} />
+```
 
 ## Styling
 
-Android draws toasts with native views, so styles use a fixed set of keys that
+Toasts are drawn with native views, so styles use a fixed set of keys that
 render the same on both platforms:
 
 - `ToastViewStyle`: `backgroundColor`, `borderColor`, `borderWidth`,
@@ -181,8 +198,8 @@ toast('Font icon', {
 ## Behavior notes
 
 - Toast content is data, not JSX: there is no `toast.custom`, and icons and
-  buttons do not accept React elements. This lets Android render toasts in
-  native windows above modals.
+  buttons do not accept React elements. This lets both platforms render toasts
+  in native windows above modals and bottom sheets.
 - Styles are limited to the keys listed in [Styling](#styling).
 - Plain `toast()` shows no icon.
 

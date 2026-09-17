@@ -1,4 +1,4 @@
-import type { TurboModule } from 'react-native';
+import type { CodegenTypes, TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
 export type NativeToastIcon = {
@@ -68,11 +68,16 @@ export type NativeToastOptions = {
   cancel?: NativeToastButton;
 };
 
+export type NativeToastEvent = {
+  id: string;
+  type: string;
+};
+
 export interface Spec extends TurboModule {
   show(options: NativeToastOptions): void;
   dismiss(id: string | null): void;
   wiggle(id: string): void;
-  triggerHaptic(): void;
+  readonly onToastEvent: CodegenTypes.EventEmitter<NativeToastEvent>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SuperToast');

@@ -16,6 +16,12 @@ export type ToastTheme = 'light' | 'dark' | 'system';
 
 export type ToastSwipeDirection = 'up' | 'down' | 'left' | 'right';
 
+/**
+ * Distance from the safe area edge a toast is anchored to. A number applies to
+ * both edges; an object sets each edge, and omitted edges keep the default.
+ */
+export type ToastOffset = number | { top?: number; bottom?: number };
+
 export type ToastTextIcon = {
   type: 'text';
   value: string;
@@ -52,8 +58,8 @@ export type ToastAction = {
 };
 
 /**
- * Container style keys rendered identically on iOS and Android. Android draws
- * toasts natively, so arbitrary React Native styles are not supported.
+ * Container style keys rendered identically on iOS and Android. Both platforms
+ * draw toasts natively, so arbitrary React Native styles are not supported.
  */
 export type ToastViewStyle = {
   backgroundColor?: string;
@@ -143,8 +149,12 @@ export type ToastHostProps = {
   visibleToasts?: number;
   /** Space between listed toasts. Defaults to 14. */
   gap?: number;
-  /** Distance from the safe area edge. */
-  offset?: number;
+  /**
+   * Distance from the safe area edge: the top edge for 'top-center' toasts and
+   * the bottom edge for 'bottom-center' toasts. Ignored for 'center'. Defaults
+   * to 8, or 16 on devices without a safe area inset on that edge.
+   */
+  offset?: ToastOffset;
   /** Defaults to 'up'. */
   swipeToDismissDirection?: ToastSwipeDirection;
   /** Collapses concurrent toasts into an overlapping deck. */

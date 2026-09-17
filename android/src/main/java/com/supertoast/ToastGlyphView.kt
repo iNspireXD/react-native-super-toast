@@ -10,7 +10,7 @@ import kotlin.math.min
 
 /**
  * Draws the built-in state and close icons: Lucide geometry on a 24-unit grid
- * with a 2-unit round stroke. Keep in sync with src/icons.tsx.
+ * with a 2-unit round stroke. Keep in sync with ios/SuperToastGlyphView.m.
  */
 @SuppressLint("ViewConstructor")
 internal class ToastGlyphView(

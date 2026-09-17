@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from '@jest/globals';
 
-import { computeLayout } from '../layout';
 import { resolveToast, setToastHostConfig } from '../resolve';
+import type { ToastPosition } from '../types';
 
 afterEach(() => setToastHostConfig({}));
 
@@ -23,6 +23,26 @@ it('uses the light palette by default', () => {
     gap: 14,
   });
   expect(resolved.action).toBeUndefined();
+});
+
+it('resolves the offset for the edge each toast is anchored to', () => {
+  const offsetFor = (position: ToastPosition) =>
+    resolveToast('1', 'Hi', 'default', { position }).offset;
+
+  expect(offsetFor('top-center')).toBeUndefined();
+
+  setToastHostConfig({ offset: 24 });
+  expect(offsetFor('top-center')).toBe(24);
+  expect(offsetFor('bottom-center')).toBe(24);
+  expect(offsetFor('center')).toBeUndefined();
+
+  setToastHostConfig({ offset: { top: 8, bottom: 80 } });
+  expect(offsetFor('top-center')).toBe(8);
+  expect(offsetFor('bottom-center')).toBe(80);
+
+  setToastHostConfig({ offset: { bottom: 80 } });
+  expect(offsetFor('top-center')).toBeUndefined();
+  expect(offsetFor('bottom-center')).toBe(80);
 });
 
 it('applies theme, rich colors, and host settings', () => {
@@ -91,25 +111,5 @@ it('merges styles from the host, variant, and toast in order', () => {
       style: { borderRadius: 999, borderWidth: 1 },
       textStyle: { fontSize: 12, fontWeight: '600' },
     },
-  });
-});
-
-it('lists toasts with gaps and stacks them behind the front card', () => {
-  const items = [
-    { id: 'new', height: 60 },
-    { id: 'mid', height: 80 },
-    { id: 'old', height: 40 },
-  ];
-
-  expect(computeLayout(items, { enableStacking: false, gap: 14 })).toEqual({
-    new: { distance: 0, scale: 1, depth: 0 },
-    mid: { distance: 74, scale: 1, depth: 1 },
-    old: { distance: 168, scale: 1, depth: 2 },
-  });
-
-  expect(computeLayout(items, { enableStacking: true, gap: 14 })).toEqual({
-    new: { distance: 0, scale: 1, depth: 0 },
-    mid: { distance: 8, scale: 0.95, depth: 1 },
-    old: { distance: 36, scale: 0.9, depth: 2 },
   });
 });

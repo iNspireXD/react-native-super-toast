@@ -12,7 +12,9 @@ import type {
   ToastAction,
   ToastFontIcon,
   ToastIcon,
+  ToastOffset,
   ToastOptions,
+  ToastPosition,
   ToastTextStyle,
   ToastVariant,
   ToastViewStyle,
@@ -147,6 +149,16 @@ function resolveScheme(invert: boolean): 'light' | 'dark' {
   return scheme === 'dark' ? 'light' : 'dark';
 }
 
+/** Picks the edge offset for a position. Undefined keeps the native default. */
+function resolveOffset(
+  offset: ToastOffset | undefined,
+  position: ToastPosition
+): number | undefined {
+  if (offset === undefined || position === 'center') return undefined;
+  if (typeof offset === 'number') return offset;
+  return position === 'bottom-center' ? offset.bottom : offset.top;
+}
+
 function resolveDuration(variant: ToastVariant, duration?: number): number {
   const value =
     duration ??
@@ -195,6 +207,9 @@ export function resolveToast(
         }
       : undefined;
 
+  const position =
+    options.position ?? config.position ?? toastDefaults.position;
+
   return {
     id,
     variant,
@@ -203,7 +218,7 @@ export function resolveToast(
     icon: normalizeIcon(options.icon ?? config.icons?.[variant as 'success']),
     iconColor,
     duration: resolveDuration(variant, options.duration),
-    position: options.position ?? config.position ?? toastDefaults.position,
+    position,
     dismissible: options.dismissible ?? true,
     closeButton: options.closeButton ?? config.closeButton ?? false,
     closeButtonColor:
@@ -220,7 +235,7 @@ export function resolveToast(
       config.visibleToasts ?? toastDefaults.visibleToasts
     ),
     gap: config.gap ?? toastDefaults.gap,
-    offset: config.offset,
+    offset: resolveOffset(config.offset, position),
     style: mergeBox(
       {
         backgroundColor: rich?.background ?? colors.backgroundPrimary,

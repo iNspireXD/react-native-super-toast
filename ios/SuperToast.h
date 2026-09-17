@@ -1,4 +1,4 @@
 #import <SuperToastSpec/SuperToastSpec.h>
 
-@interface SuperToast : NSObject <NativeSuperToastSpec>
+@interface SuperToast : NativeSuperToastSpecBase <NativeSuperToastSpec>
 @end

@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
 /**
  * Presents every toast in its own non-focusable dialog window, which keeps
  * toasts above React Native modals and bottom sheets. Positioning mirrors
- * src/layout.ts and the iOS renderer in src/ToastHost.ios.tsx.
+ * ios/SuperToastHost.m.
  */
 class ToastDialogHost(
   private val reactContext: ReactApplicationContext,
@@ -276,7 +276,7 @@ class ToastDialogHost(
   }
 
   private fun layoutPosition(activity: Activity, position: String) {
-    // Newest first, matching computeLayout in src/layout.ts.
+    // Newest first, matching SuperToastHost.m on iOS.
     val active = entries.filter { !it.dismissing && it.config.position == position }.asReversed()
     val front = active.firstOrNull() ?: return
     if (

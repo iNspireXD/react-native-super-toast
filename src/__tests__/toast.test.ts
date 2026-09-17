@@ -1,31 +1,60 @@
 import { beforeEach, expect, it, jest } from '@jest/globals';
 
-import {
-  completeRemove,
-  dismissFromToast,
-  getSnapshot,
-  press,
-} from '../iosToastStore';
+import NativeSuperToast from '../NativeSuperToast';
+
+import type { NativeToastEvent, NativeToastOptions } from '../NativeSuperToast';
 import { toast } from '../toast';
 
-function removeAll() {
-  toast.dismiss();
-  getSnapshot().toasts.forEach(({ key }) => completeRemove(key));
+type Listener = (event: NativeToastEvent) => void;
+
+jest.mock('../NativeSuperToast', () => {
+  const listeners = new Set<Listener>();
+  return {
+    __esModule: true,
+    default: {
+      listeners,
+      show: jest.fn(),
+      dismiss: jest.fn(),
+      wiggle: jest.fn(),
+      onToastEvent: (listener: Listener) => {
+        listeners.add(listener);
+        return { remove: () => listeners.delete(listener) };
+      },
+    },
+  };
+});
+
+const mockNative = NativeSuperToast as unknown as {
+  listeners: Set<Listener>;
+  show: jest.Mock<(options: NativeToastOptions) => void>;
+  dismiss: jest.Mock<(id: string | null) => void>;
+  wiggle: jest.Mock<(id: string) => void>;
+};
+
+function emit(id: string | number, type: string) {
+  mockNative.listeners.forEach((listener) =>
+    listener({ id: String(id), type })
+  );
+}
+
+function lastShown(): NativeToastOptions {
+  const calls = mockNative.show.mock.calls;
+  return calls[calls.length - 1]![0];
 }
 
 const settlePromises = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function activeToasts() {
-  return getSnapshot().toasts.filter(({ dismissing }) => !dismissing);
-}
-
-beforeEach(removeAll);
+beforeEach(() => {
+  toast.dismiss();
+  mockNative.show.mockClear();
+  mockNative.dismiss.mockClear();
+  mockNative.wiggle.mockClear();
+});
 
 it('shows each variant with the default options', () => {
   const id = toast.success('Saved', { description: 'All good' });
 
-  expect(activeToasts()).toHaveLength(1);
-  expect(activeToasts()[0]?.options).toMatchObject({
+  expect(lastShown()).toMatchObject({
     id: String(id),
     variant: 'success',
     title: 'Saved',
@@ -34,24 +63,28 @@ it('shows each variant with the default options', () => {
     position: 'top-center',
     dismissible: true,
     closeButton: false,
-    iconColor: '#3c8643',
+    iconColor: '#ff3c8643',
   });
 
   toast.loading('Working');
-  expect(activeToasts()[1]?.options).toMatchObject({
-    variant: 'loading',
-    duration: 0,
-  });
+  expect(lastShown()).toMatchObject({ variant: 'loading', duration: 0 });
 });
 
-it('updates a toast in place when an id is reused', () => {
+it('converts colors to #AARRGGBB for native rendering', () => {
+  toast('Styled', { style: { backgroundColor: 'red' } });
+
+  expect(lastShown().style.backgroundColor).toBe('#ffff0000');
+});
+
+it('reuses the id when a toast is updated in place', () => {
   toast('Uploading', { id: 'upload' });
   toast.success('Uploaded', { id: 'upload' });
 
-  expect(activeToasts()).toHaveLength(1);
-  expect(activeToasts()[0]).toMatchObject({
-    revision: 1,
-    options: { id: 'upload', variant: 'success', title: 'Uploaded' },
+  expect(mockNative.show).toHaveBeenCalledTimes(2);
+  expect(lastShown()).toMatchObject({
+    id: 'upload',
+    variant: 'success',
+    title: 'Uploaded',
   });
 });
 
@@ -67,8 +100,8 @@ it('routes button, press, and timer events to callbacks once', () => {
     onDismiss,
     onPress,
   });
-  press(String(actionId));
-  dismissFromToast(String(actionId), 'action');
+  emit(actionId, 'press');
+  emit(actionId, 'action');
   toast.dismiss(actionId);
 
   expect(onPress).toHaveBeenCalledTimes(1);
@@ -79,12 +112,12 @@ it('routes button, press, and timer events to callbacks once', () => {
     cancel: { label: 'Stay', onClick: onCancel },
     onDismiss,
   });
-  dismissFromToast(String(cancelId), 'cancel');
+  emit(cancelId, 'cancel');
   expect(onCancel).toHaveBeenCalledTimes(1);
   expect(onDismiss).toHaveBeenCalledWith(cancelId);
 
   const timedId = toast('Timed', { onAutoClose, onDismiss });
-  dismissFromToast(String(timedId), 'autoClose');
+  emit(timedId, 'autoClose');
   toast.dismiss(timedId);
   expect(onAutoClose).toHaveBeenCalledWith(timedId);
   expect(onDismiss).toHaveBeenCalledTimes(1);
@@ -97,24 +130,7 @@ it('calls onDismiss for programmatic dismissal', () => {
   toast.dismiss(id);
 
   expect(onDismiss).toHaveBeenCalledWith(id);
-  expect(activeToasts()).toHaveLength(0);
-});
-
-it('evicts the oldest toast beyond the visible limit', () => {
-  const first = toast('One');
-  toast('Two');
-  toast('Three');
-  toast('Four');
-
-  expect(activeToasts().map(({ options }) => options.title)).toEqual([
-    'Two',
-    'Three',
-    'Four',
-  ]);
-  expect(
-    getSnapshot().toasts.find(({ options }) => options.id === String(first))
-      ?.dismissing
-  ).toBe(true);
+  expect(mockNative.dismiss).toHaveBeenCalledWith(String(id));
 });
 
 it('resolves promise toasts', async () => {
@@ -124,14 +140,11 @@ it('resolves promise toasts', async () => {
     error: 'Failed',
   });
 
-  expect(activeToasts()[0]?.options).toMatchObject({
-    variant: 'loading',
-    dismissible: false,
-  });
+  expect(lastShown()).toMatchObject({ variant: 'loading', dismissible: false });
 
   await settlePromises();
 
-  expect(activeToasts()[0]?.options).toMatchObject({
+  expect(lastShown()).toMatchObject({
     id: String(id),
     variant: 'success',
     title: 'Loaded 42',
@@ -148,14 +161,25 @@ it('resolves rejected promise toasts', async () => {
 
   await settlePromises();
 
-  expect(activeToasts()[0]?.options).toMatchObject({
-    variant: 'error',
-    title: 'nope',
-  });
+  expect(lastShown()).toMatchObject({ variant: 'error', title: 'nope' });
 });
 
-it('increments the wiggle counter', () => {
+it('does not resolve a promise toast the user dismissed', async () => {
+  const id = toast.promise(Promise.resolve(1), {
+    loading: 'Loading',
+    success: 'Done',
+    error: 'Failed',
+  });
+  emit(id, 'dismiss');
+  mockNative.show.mockClear();
+
+  await settlePromises();
+
+  expect(mockNative.show).not.toHaveBeenCalled();
+});
+
+it('forwards wiggle to native', () => {
   const id = toast('Look here');
   toast.wiggle(id);
-  expect(activeToasts()[0]?.wiggle).toBe(1);
+  expect(mockNative.wiggle).toHaveBeenCalledWith(String(id));
 });

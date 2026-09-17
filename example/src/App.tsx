@@ -28,6 +28,7 @@ import Animated, {
 
 import { toast, ToastHost } from 'react-native-super-toast';
 import type {
+  ToastHostProps,
   ToastId,
   ToastPosition,
   ToastSwipeDirection,
@@ -64,6 +65,86 @@ const COLORS = {
 const POSITIONS: ToastPosition[] = ['top-center', 'bottom-center', 'center'];
 const THEMES: ToastTheme[] = ['system', 'light', 'dark'];
 const SWIPE_DIRECTIONS: ToastSwipeDirection[] = ['up', 'down', 'left', 'right'];
+const DURATIONS = ['2s', '4s', '8s', 'forever'] as const;
+const STYLE_PRESETS = ['default', 'compact', 'outline', 'brand'] as const;
+
+type DurationOption = (typeof DURATIONS)[number];
+type StylePreset = (typeof STYLE_PRESETS)[number];
+
+type DemoSettings = {
+  position: ToastPosition;
+  offsetTop?: number;
+  offsetBottom?: number;
+  gap: number;
+  visibleToasts: number;
+  theme: ToastTheme;
+  richColors: boolean;
+  invert: boolean;
+  stylePreset: StylePreset;
+  customIcons: boolean;
+  duration: DurationOption;
+  swipeDirection: ToastSwipeDirection;
+  closeButton: boolean;
+  enableStacking: boolean;
+  expandOnPress: boolean;
+  haptic: boolean;
+};
+
+const DEFAULT_SETTINGS: DemoSettings = {
+  position: 'top-center',
+  gap: 14,
+  visibleToasts: 3,
+  theme: 'system',
+  richColors: false,
+  invert: false,
+  stylePreset: 'default',
+  customIcons: false,
+  duration: '4s',
+  swipeDirection: 'up',
+  closeButton: false,
+  enableStacking: false,
+  expandOnPress: false,
+  haptic: false,
+};
+
+const DURATION_MS: Record<DurationOption, number> = {
+  '2s': 2000,
+  '4s': 4000,
+  '8s': 8000,
+  'forever': Infinity,
+};
+
+const STYLE_PRESET_OPTIONS: Record<
+  StylePreset,
+  ToastHostProps['toastOptions']
+> = {
+  default: undefined,
+  compact: {
+    style: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+    titleStyle: { fontSize: 13, lineHeight: 18 },
+    descriptionStyle: { fontSize: 12, lineHeight: 16 },
+  },
+  outline: {
+    style: { borderWidth: 1, borderColor: '#B8B8B3', borderRadius: 12 },
+    actionButtonStyle: { borderRadius: 6 },
+  },
+  brand: {
+    style: { borderRadius: 4 },
+    titleStyle: { fontFamily: 'Karla-Bold', fontSize: 15 },
+    descriptionStyle: { fontFamily: 'Karla-Italic' },
+    actionButtonStyle: { backgroundColor: '#35A85A', borderWidth: 0 },
+    actionButtonTextStyle: { color: COLORS.white },
+    success: { borderWidth: 1, borderColor: '#35A85A' },
+    error: { borderWidth: 1, borderColor: '#E5484D' },
+  },
+};
+
+const CUSTOM_ICONS: ToastHostProps['icons'] = {
+  success: '🎉',
+  error: '🚫',
+  warning: '⚡️',
+  info: '💡',
+};
 const SETTINGS_BUTTON_RIGHT = 20;
 const SETTINGS_BUTTON_BOTTOM = 48;
 const SETTINGS_BUTTON_EDGE_GAP = 12;
@@ -156,6 +237,89 @@ function SettingChoice<T extends string>({
             </Text>
           </Pressable>
         ))}
+      </View>
+    </View>
+  );
+}
+
+function SettingGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.settingGroup}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+/** `undefined` means the library default, shown as "Default". */
+function SettingStepper({
+  label,
+  value,
+  onChange,
+  step,
+  min,
+  max,
+  unit = '',
+  defaultValue,
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
+  step: number;
+  min: number;
+  max: number;
+  unit?: string;
+  /** Where stepping starts from when the value is unset. */
+  defaultValue?: number;
+}) {
+  const current = value ?? defaultValue ?? min;
+  const change = (delta: number) =>
+    onChange(Math.max(min, Math.min(max, current + delta)));
+  const canReset = defaultValue !== undefined && value !== undefined;
+
+  return (
+    <View style={styles.toggleRow}>
+      <Text style={styles.settingLabel}>{label}</Text>
+      <View style={styles.stepper}>
+        {canReset ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Reset ${label}`}
+            onPress={() => onChange(undefined)}
+            style={styles.stepperReset}
+          >
+            <Text style={styles.stepperResetText}>reset</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Decrease ${label}`}
+          disabled={value !== undefined && current <= min}
+          onPress={() => change(-step)}
+          style={styles.stepperButton}
+        >
+          <Text style={styles.stepperButtonText}>−</Text>
+        </Pressable>
+        <Text style={styles.stepperValue}>
+          {value === undefined && defaultValue !== undefined
+            ? 'Default'
+            : `${value ?? current}${unit}`}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Increase ${label}`}
+          disabled={current >= max}
+          onPress={() => change(step)}
+          style={styles.stepperButton}
+        >
+          <Text style={styles.stepperButtonText}>+</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -413,17 +577,16 @@ function BagSummary({ onCheckout }: { onCheckout: () => void }) {
 }
 
 export default function App() {
-  const [position, setPosition] = useState<ToastPosition>('top-center');
-  const [theme, setTheme] = useState<ToastTheme>('system');
-  const [swipeDirection, setSwipeDirection] =
-    useState<ToastSwipeDirection>('up');
-  const [richColors, setRichColors] = useState(false);
-  const [closeButton, setCloseButton] = useState(false);
-  const [enableStacking, setEnableStacking] = useState(false);
-  const [expandOnPress, setExpandOnPress] = useState(false);
+  const [settings, setSettings] = useState<DemoSettings>(DEFAULT_SETTINGS);
+  const update = <K extends keyof DemoSettings>(
+    key: K,
+    value: DemoSettings[K]
+  ) => setSettings((current) => ({ ...current, [key]: value }));
   const systemScheme = useColorScheme();
-  const darkToasts =
-    theme === 'dark' || (theme === 'system' && systemScheme === 'dark');
+  const darkTheme =
+    settings.theme === 'dark' ||
+    (settings.theme === 'system' && systemScheme === 'dark');
+  const darkToasts = darkTheme !== settings.invert;
   const iconColor = darkToasts ? COLORS.white : COLORS.ink;
 
   const [pageSheetModalVisible, setPageSheetModalVisible] = useState(false);
@@ -442,6 +605,29 @@ export default function App() {
       'Payment receipt emailed',
       '450 reward points earned',
     ].forEach((title, index) => setTimeout(() => toast(title), index * 350));
+  }, []);
+
+  // Covers every variant plus buttons, so each setting is visible at once.
+  const showPreview = useCallback(() => {
+    toast.success('Preferences saved', {
+      description: 'Your changes are live.',
+    });
+    setTimeout(
+      () =>
+        toast.error('Payment declined', {
+          action: { label: 'Retry', onClick: () => toast('Retrying…') },
+        }),
+      300
+    );
+    setTimeout(
+      () =>
+        toast.warning('Only 2 left', {
+          description: 'Add it to your bag before it’s gone.',
+          cancel: { label: 'Dismiss', onClick: () => {} },
+        }),
+      600
+    );
+    setTimeout(() => toast.info('Free delivery unlocked'), 900);
   }, []);
 
   const renderBackdrop = (props: BottomSheetBackdropProps) => (
@@ -631,44 +817,132 @@ export default function App() {
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.settingsContent}
                 >
-                  <SettingChoice
-                    label="Position"
-                    values={POSITIONS}
-                    value={position}
-                    onChange={setPosition}
-                  />
-                  <SettingChoice
-                    label="Theme"
-                    values={THEMES}
-                    value={theme}
-                    onChange={setTheme}
-                  />
-                  <SettingChoice
-                    label="Swipe direction"
-                    values={SWIPE_DIRECTIONS}
-                    value={swipeDirection}
-                    onChange={setSwipeDirection}
-                  />
-                  <SettingToggle
-                    label="Rich colors"
-                    value={richColors}
-                    onChange={setRichColors}
-                  />
-                  <SettingToggle
-                    label="Close button"
-                    value={closeButton}
-                    onChange={setCloseButton}
-                  />
-                  <SettingToggle
-                    label="Stacking"
-                    value={enableStacking}
-                    onChange={setEnableStacking}
-                  />
-                  <SettingToggle
-                    label="Expand stack on press"
-                    value={expandOnPress}
-                    onChange={setExpandOnPress}
-                  />
+                  <SettingGroup title="LAYOUT">
+                    <SettingChoice
+                      label="Position"
+                      values={POSITIONS}
+                      value={settings.position}
+                      onChange={(value) => update('position', value)}
+                    />
+                    <SettingStepper
+                      label="Top offset"
+                      value={settings.offsetTop}
+                      onChange={(value) => update('offsetTop', value)}
+                      step={8}
+                      min={0}
+                      max={200}
+                      unit="pt"
+                      defaultValue={8}
+                    />
+                    <SettingStepper
+                      label="Bottom offset"
+                      value={settings.offsetBottom}
+                      onChange={(value) => update('offsetBottom', value)}
+                      step={8}
+                      min={0}
+                      max={200}
+                      unit="pt"
+                      defaultValue={8}
+                    />
+                    <SettingStepper
+                      label="Gap"
+                      value={settings.gap}
+                      onChange={(value) =>
+                        update('gap', value ?? DEFAULT_SETTINGS.gap)
+                      }
+                      step={2}
+                      min={0}
+                      max={40}
+                      unit="pt"
+                    />
+                    <SettingStepper
+                      label="Visible toasts"
+                      value={settings.visibleToasts}
+                      onChange={(value) =>
+                        update(
+                          'visibleToasts',
+                          value ?? DEFAULT_SETTINGS.visibleToasts
+                        )
+                      }
+                      step={1}
+                      min={1}
+                      max={6}
+                    />
+                    <SettingToggle
+                      label="Stacking"
+                      value={settings.enableStacking}
+                      onChange={(value) => update('enableStacking', value)}
+                    />
+                    <SettingToggle
+                      label="Expand stack on press"
+                      value={settings.expandOnPress}
+                      onChange={(value) => update('expandOnPress', value)}
+                    />
+                  </SettingGroup>
+
+                  <SettingGroup title="APPEARANCE">
+                    <SettingChoice
+                      label="Theme"
+                      values={THEMES}
+                      value={settings.theme}
+                      onChange={(value) => update('theme', value)}
+                    />
+                    <SettingChoice
+                      label="Style preset"
+                      values={STYLE_PRESETS}
+                      value={settings.stylePreset}
+                      onChange={(value) => update('stylePreset', value)}
+                    />
+                    <SettingToggle
+                      label="Rich colors"
+                      value={settings.richColors}
+                      onChange={(value) => update('richColors', value)}
+                    />
+                    <SettingToggle
+                      label="Invert theme"
+                      value={settings.invert}
+                      onChange={(value) => update('invert', value)}
+                    />
+                    <SettingToggle
+                      label="Custom variant icons"
+                      value={settings.customIcons}
+                      onChange={(value) => update('customIcons', value)}
+                    />
+                  </SettingGroup>
+
+                  <SettingGroup title="BEHAVIOR">
+                    <SettingChoice
+                      label="Duration"
+                      values={DURATIONS}
+                      value={settings.duration}
+                      onChange={(value) => update('duration', value)}
+                    />
+                    <SettingChoice
+                      label="Swipe direction"
+                      values={SWIPE_DIRECTIONS}
+                      value={settings.swipeDirection}
+                      onChange={(value) => update('swipeDirection', value)}
+                    />
+                    <SettingToggle
+                      label="Close button"
+                      value={settings.closeButton}
+                      onChange={(value) => update('closeButton', value)}
+                    />
+                    <SettingToggle
+                      label="Haptics"
+                      value={settings.haptic}
+                      onChange={(value) => update('haptic', value)}
+                    />
+                  </SettingGroup>
+
+                  <View style={styles.settingsActions}>
+                    <ActionButton onPress={showPreview} tone="dark">
+                      Preview toasts
+                    </ActionButton>
+                    <ActionButton onPress={() => setSettings(DEFAULT_SETTINGS)}>
+                      Reset to defaults
+                    </ActionButton>
+                  </View>
                 </BottomSheetScrollView>
               </BottomSheetModal>
 
@@ -894,13 +1168,24 @@ export default function App() {
               </BottomSheetModal>
 
               <ToastHost
-                position={position}
-                theme={theme}
-                richColors={richColors}
-                closeButton={closeButton}
-                enableStacking={enableStacking}
-                expandOnPress={expandOnPress}
-                swipeToDismissDirection={swipeDirection}
+                position={settings.position}
+                offset={{
+                  top: settings.offsetTop,
+                  bottom: settings.offsetBottom,
+                }}
+                gap={settings.gap}
+                visibleToasts={settings.visibleToasts}
+                theme={settings.theme}
+                richColors={settings.richColors}
+                invert={settings.invert}
+                toastOptions={STYLE_PRESET_OPTIONS[settings.stylePreset]}
+                icons={settings.customIcons ? CUSTOM_ICONS : undefined}
+                duration={DURATION_MS[settings.duration]}
+                swipeToDismissDirection={settings.swipeDirection}
+                closeButton={settings.closeButton}
+                enableStacking={settings.enableStacking}
+                expandOnPress={settings.expandOnPress}
+                haptic={settings.haptic}
               />
             </SafeAreaView>
           </BottomSheetModalProvider>
@@ -1168,6 +1453,27 @@ const styles = StyleSheet.create({
   choiceSelected: { backgroundColor: COLORS.ink },
   choiceText: { color: COLORS.ink, fontSize: 12 },
   choiceTextSelected: { color: COLORS.white },
+  settingGroup: { paddingTop: 22 },
+  settingsActions: { paddingTop: 24, gap: 8 },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepperButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.soft,
+  },
+  stepperButtonText: { color: COLORS.ink, fontSize: 18, lineHeight: 21 },
+  stepperValue: {
+    minWidth: 58,
+    color: COLORS.ink,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  stepperReset: { paddingHorizontal: 6, paddingVertical: 8 },
+  stepperResetText: { color: COLORS.muted, fontSize: 12 },
   toggleRow: {
     minHeight: 57,
     flexDirection: 'row',

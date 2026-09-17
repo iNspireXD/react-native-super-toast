@@ -11,6 +11,7 @@ export type {
   ToastIcon,
   ToastId,
   ToastImageIcon,
+  ToastOffset,
   ToastOptions,
   ToastPosition,
   ToastStyles,

@@ -1,6 +1,5 @@
 package com.supertoast
 
-import android.view.HapticFeedbackConstants
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
@@ -24,14 +23,6 @@ class SuperToastModule(private val reactContext: ReactApplicationContext) : Nati
     UiThreadUtil.runOnUiThread { host.wiggle(id) }
   }
 
-  override fun triggerHaptic() {
-    UiThreadUtil.runOnUiThread {
-      reactContext.currentActivity?.window?.decorView?.performHapticFeedback(
-        HapticFeedbackConstants.KEYBOARD_TAP
-      )
-    }
-  }
-
   private fun emitEvent(id: String, type: String) {
     if (!reactContext.hasActiveReactInstance()) return
 
@@ -39,11 +30,10 @@ class SuperToastModule(private val reactContext: ReactApplicationContext) : Nati
       putString("id", id)
       putString("type", type)
     }
-    reactContext.emitDeviceEvent(EVENT_NAME, payload)
+    emitOnToastEvent(payload)
   }
 
   companion object {
     const val NAME = "SuperToast"
-    private const val EVENT_NAME = "SuperToastEvent"
   }
 }
