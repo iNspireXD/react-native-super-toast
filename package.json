@@ -132,7 +132,7 @@
       "customExportConditions": [
         "require",
         "react-native",
-        "<%- project.sourceCondition -%>"
+        "react-native-super-toast-source"
       ]
     },
     "modulePathIgnorePatterns": [
