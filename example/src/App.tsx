@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ElementRef, ReactNode } from 'react';
 import {
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   useColorScheme,
   useWindowDimensions,
   View,
@@ -32,6 +34,7 @@ import BottomSheet, {
   BottomSheetModal,
   BottomSheetModalProvider,
   BottomSheetScrollView,
+  BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import {
@@ -743,6 +746,47 @@ function DemoSections({ sections }: { sections: DemoSection[] }) {
   );
 }
 
+/** Bottom and center toasts should move above the keyboard; top toasts stay put. */
+function KeyboardDemo({ inSheet = false }: { inSheet?: boolean }) {
+  // Sheets need their own input so the sheet moves with the keyboard.
+  const Input = inSheet ? BottomSheetTextInput : TextInput;
+  const show = (position: ToastPosition) =>
+    toast(`${position.replace('-', ' ')} toast`, {
+      description: 'Open and close the keyboard while this is visible.',
+      position,
+    });
+
+  return (
+    <Section title="KEYBOARD">
+      <Input
+        accessibilityLabel="Keyboard test input"
+        placeholder="Tap here to open the keyboard"
+        placeholderTextColor={COLORS.muted}
+        style={styles.input}
+      />
+      <ActionButton onPress={() => show('bottom-center')}>
+        Bottom toast
+      </ActionButton>
+      <ActionButton
+        onPress={() =>
+          ['Changes saved', 'File uploaded', 'Invite sent'].forEach(
+            (title, index) =>
+              setTimeout(
+                () => toast.success(title, { position: 'bottom-center' }),
+                index * 350
+              )
+          )
+        }
+      >
+        Three bottom toasts
+      </ActionButton>
+      <ActionButton onPress={Keyboard.dismiss} tone="dark">
+        Hide keyboard
+      </ActionButton>
+    </Section>
+  );
+}
+
 /** A short set of toasts for checking rendering above modals and sheets. */
 function OverlayDemo({ onClose }: { onClose: () => void }) {
   return (
@@ -838,11 +882,15 @@ export default function App() {
             <ScrollView
               contentContainerStyle={styles.content}
               showsVerticalScrollIndicator={false}
+              // Buttons stay tappable without closing the keyboard.
+              keyboardShouldPersistTaps="handled"
             >
               <PageHeader
                 title="Super Toast"
                 subtitle="Native toasts that render above modals and bottom sheets. Use Settings to change how they look and behave."
               />
+
+              <KeyboardDemo />
 
               <DemoSections sections={sections} />
 
@@ -1070,6 +1118,8 @@ export default function App() {
               snapPoints={SHEET_SNAP_POINTS}
               enableDynamicSizing={false}
               enablePanDownToClose
+              keyboardBlurBehavior="restore"
+              android_keyboardInputMode="adjustResize"
               backdropComponent={
                 Platform.OS === 'android' ? undefined : renderBackdrop
               }
@@ -1078,11 +1128,13 @@ export default function App() {
             >
               <BottomSheetScrollView
                 contentContainerStyle={styles.sheetContent}
+                keyboardShouldPersistTaps="handled"
               >
                 <PageHeader
                   title="Bottom sheet"
-                  subtitle="Toasts should appear above this sheet."
+                  subtitle="Toasts should appear above this sheet and stay clear of the keyboard."
                 />
+                <KeyboardDemo inSheet />
                 <OverlayDemo onClose={() => bottomSheetRef.current?.close()} />
               </BottomSheetScrollView>
             </BottomSheet>
@@ -1210,6 +1262,16 @@ const styles = StyleSheet.create({
   },
   buttonLabelDark: { color: COLORS.white },
   buttonValue: { color: COLORS.muted, fontSize: 18 },
+  input: {
+    minHeight: 49,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.line,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 15,
+    color: COLORS.ink,
+    fontSize: 14,
+  },
   settingsButtonContainer: {
     position: 'absolute',
     right: SETTINGS_BUTTON_RIGHT,

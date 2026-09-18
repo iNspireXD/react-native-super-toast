@@ -60,6 +60,40 @@ static void SuperToastStopAnimator(UIViewPropertyAnimator *_Nullable animator)
   }
 }
 
+#pragma mark - Keyboard
+
+/** Keyboard end frame in screen coordinates, or CGRectZero while hidden. */
+static CGRect SuperToastKeyboardFrame;
+
+/**
+ * UIKit only reports the keyboard frame when it changes, and the host is
+ * created with the first toast. Tracking from launch means a keyboard that
+ * opened before then is still known.
+ */
+@interface SuperToastKeyboardObserver : NSObject
+@end
+
+@implementation SuperToastKeyboardObserver
+
++ (void)load
+{
+  NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+  [center addObserverForName:UIKeyboardWillChangeFrameNotification
+                      object:nil
+                       queue:nil
+                  usingBlock:^(NSNotification *notification) {
+                    SuperToastKeyboardFrame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+                  }];
+  [center addObserverForName:UIKeyboardWillHideNotification
+                      object:nil
+                       queue:nil
+                  usingBlock:^(NSNotification *notification) {
+                    SuperToastKeyboardFrame = CGRectZero;
+                  }];
+}
+
+@end
+
 #pragma mark - Window
 
 /** Passes touches that miss every toast through to the app below. */
@@ -177,8 +211,20 @@ static void SuperToastStopAnimator(UIViewPropertyAnimator *_Nullable animator)
     _eventHandler = [eventHandler copy];
     _entries = [NSMutableArray new];
     _expandedPositions = [NSMutableSet new];
+
+    NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+    [center addObserver:self
+               selector:@selector(keyboardWillChangeFrame:)
+                   name:UIKeyboardWillChangeFrameNotification
+                 object:nil];
+    [center addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
   }
   return self;
+}
+
+- (void)dealloc
+{
+  [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (void)show:(SuperToastConfig *)config
@@ -378,6 +424,37 @@ static void SuperToastStopAnimator(UIViewPropertyAnimator *_Nullable animator)
   [self layout];
 }
 
+#pragma mark - Keyboard
+
+- (void)keyboardWillChangeFrame:(NSNotification *)notification
+{
+  // Set here too: observers are not called in a guaranteed order.
+  SuperToastKeyboardFrame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+  [self layout];
+}
+
+- (void)keyboardWillHide:(NSNotification *)notification
+{
+  SuperToastKeyboardFrame = CGRectZero;
+  [self layout];
+}
+
+/** Height the docked keyboard covers at the container's bottom edge. */
+- (CGFloat)keyboardOverlapInContainer:(UIView *)container
+{
+  UIScreen *screen = container.window.screen;
+  if (!screen || CGRectIsEmpty(SuperToastKeyboardFrame)) {
+    return 0;
+  }
+  CGRect frame = [container convertRect:SuperToastKeyboardFrame fromCoordinateSpace:screen.coordinateSpace];
+  CGRect bounds = container.bounds;
+  // A floating or undocked keyboard leaves the bottom edge uncovered.
+  if (!CGRectIntersectsRect(frame, bounds) || CGRectGetMaxY(frame) < CGRectGetMaxY(bounds)) {
+    return 0;
+  }
+  return MAX(0, CGRectGetMaxY(bounds) - CGRectGetMinY(frame));
+}
+
 #pragma mark - Layout
 
 - (void)layout
@@ -409,6 +486,9 @@ static void SuperToastStopAnimator(UIViewPropertyAnimator *_Nullable animator)
 
   CGRect bounds = container.bounds;
   UIEdgeInsets safeArea = container.safeAreaInsets;
+  // Bottom and center toasts keep clear of the keyboard; the toast window is
+  // never key, so its safe area does not include it.
+  safeArea.bottom = MAX(safeArea.bottom, [self keyboardOverlapInContainer:container]);
   CGFloat width = MIN(bounds.size.width - kHorizontalMargin * 2, kMaxWidth);
   for (SuperToastEntry *entry in active) {
     [self measure:entry width:width];

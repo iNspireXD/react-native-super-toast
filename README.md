@@ -23,6 +23,8 @@ For installation guides, API details, examples, and demos, visit the
 - Title, description, action, and cancel buttons
 - Light, dark, and system themes, with optional rich colors
 - Top, bottom, or center positions, listed or stacked
+- Keyboard aware out of the box: bottom and center toasts move above the
+  keyboard, with no setup or extra dependency
 - Swipe up or left to dismiss, plus an optional close button
 - Updating a toast in place, `toast.wiggle`, haptics, and image, text, or font
   icons
@@ -150,7 +152,8 @@ toast.dismiss(); // dismiss all
 
 `offset` is measured from the safe area edge a toast is anchored to: down from
 the top for `top-center` toasts and up from the bottom for `bottom-center`
-toasts. `center` toasts ignore it.
+toasts. `center` toasts ignore it. While the keyboard is open, `bottom-center`
+toasts measure `offset` from the top of the keyboard instead.
 
 Pass a number to use the same distance for both edges, or an object to set each
 edge. An omitted edge keeps the default: `8`, or `16` when the device has no
@@ -162,6 +165,21 @@ safe area inset on that edge.
 // Keep bottom toasts clear of a tab bar.
 <ToastHost offset={{ top: 8, bottom: 80 }} />
 ```
+
+### Keyboard
+
+Toasts avoid the software keyboard on both platforms without any setup:
+
+- `bottom-center` toasts sit above the keyboard.
+- `center` toasts re-center in the space above the keyboard.
+- `top-center` toasts do not move.
+
+Toasts follow the keyboard as it opens, closes, or changes height, and a toast
+shown while the keyboard is already open appears above it. This also works when
+the input is inside a bottom sheet.
+
+Floating and undocked iPad keyboards do not cover the bottom edge, so toasts
+stay in place for them.
 
 ## Styling
 

@@ -8,6 +8,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Handler
@@ -15,6 +16,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
@@ -66,6 +68,8 @@ class ToastDialogHost(
 
   private var attachedActivityRef: WeakReference<Activity>? = null
   private var windowFocusListener: ViewTreeObserver.OnWindowFocusChangeListener? = null
+  private var globalLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
+  private var lastKeyboardInset = 0
   private var zOrderToken = 0
   private var lastRebumpAtUptimeMs = 0L
   private var entryAnimationEndsAtUptimeMs = 0L
@@ -93,7 +97,7 @@ class ToastDialogHost(
     entries.add(entry)
 
     markEntryAnimationInProgress()
-    attachWindowFocusListener(activity)
+    attachActivityListeners(activity)
     scheduleTimer(entry, config.durationMs)
     evictOverflow(config)
 
@@ -289,6 +293,12 @@ class ToastDialogHost(
     val stacking = front.config.enableStacking && position !in expandedPositions
     val gap = dp(front.config.gapDp)
     val frontHeight = front.view.height
+    // Center toasts re-center in the space the keyboard leaves above it.
+    val centerLift = if (position == "center") {
+      max(0, keyboardInset(activity) - systemInsets(activity).second) / 2
+    } else {
+      0
+    }
     var cursor = 0
 
     active.forEachIndexed { depth, entry ->
@@ -302,7 +312,7 @@ class ToastDialogHost(
 
       val window = entry.dialog.window ?: return@forEachIndexed
       entry.restingY = when (position) {
-        "center" -> distance + height / 2 - frontHeight / 2
+        "center" -> distance + height / 2 - frontHeight / 2 - centerLift
         else -> edgeInset(activity, entry.config) + distance - dp(SHADOW_PADDING_DP)
       }
       setTouchable(window, !stacking || depth == 0)
@@ -442,7 +452,7 @@ class ToastDialogHost(
 
     if (entries.isEmpty()) {
       cancelPendingZOrderMaintenance()
-      detachWindowFocusListener()
+      detachActivityListeners()
     }
   }
 
@@ -579,7 +589,7 @@ class ToastDialogHost(
   /** Distance from the anchored screen edge to the card's outer edge. */
   private fun edgeInset(activity: Activity, config: ToastConfig): Int {
     val (top, bottom) = systemInsets(activity)
-    val inset = if (config.position == "bottom-center") bottom else top
+    val inset = if (config.position == "bottom-center") max(bottom, keyboardInset(activity)) else top
     val offset = config.offsetDp ?: if (inset > 0) DEFAULT_OFFSET_DP else DEFAULT_EDGE_OFFSET_DP
     return inset + dp(offset)
   }
@@ -598,6 +608,29 @@ class ToastDialogHost(
       systemDimension(activity, "navigation_bar_height")
   }
 
+  /**
+   * Height the soft keyboard covers at the bottom of the screen. Toast dialogs
+   * are not focusable, so Android stacks them above the keyboard instead of
+   * moving them out of its way.
+   */
+  private fun keyboardInset(activity: Activity): Int {
+    val decorView = activity.window?.decorView ?: return 0
+    return keyboardInset(decorView)
+  }
+
+  private fun keyboardInset(decorView: View): Int {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      val insets = decorView.rootWindowInsets ?: return 0
+      if (!insets.isVisible(WindowInsets.Type.ime())) return 0
+      return insets.getInsets(WindowInsets.Type.ime()).bottom
+    }
+    // Before Android 11 the keyboard covers whatever the visible frame leaves
+    // out. This includes the navigation bar, which edgeInset already allows for.
+    val visible = Rect()
+    decorView.getWindowVisibleDisplayFrame(visible)
+    return max(0, decorView.rootView.height - visible.bottom)
+  }
+
   @SuppressLint("DiscouragedApi", "InternalInsetResource")
   private fun systemDimension(activity: Activity, name: String): Int {
     val resources = activity.resources
@@ -612,34 +645,49 @@ class ToastDialogHost(
    * top layer. When the Activity loses focus, replace covered toast windows
    * with identical, already-visible ones.
    */
-  private fun attachWindowFocusListener(activity: Activity) {
+  private fun attachActivityListeners(activity: Activity) {
     if (attachedActivityRef?.get() === activity && windowFocusListener != null) return
 
-    detachWindowFocusListener()
+    detachActivityListeners()
 
     val decorView = activity.window?.decorView ?: return
-    val listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+    val focusListener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
       if (!hasFocus && entries.isNotEmpty()) scheduleZOrderMaintenance()
+    }
+    // The keyboard showing, hiding, or resizing relayouts the Activity; React
+    // Native's own Keyboard events rely on the same signal.
+    val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+      val inset = keyboardInset(decorView)
+      if (inset != lastKeyboardInset) {
+        lastKeyboardInset = inset
+        layoutIfPossible()
+      }
     }
 
     try {
-      decorView.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+      decorView.viewTreeObserver.addOnWindowFocusChangeListener(focusListener)
+      decorView.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
       attachedActivityRef = WeakReference(activity)
-      windowFocusListener = listener
+      windowFocusListener = focusListener
+      globalLayoutListener = layoutListener
+      lastKeyboardInset = keyboardInset(decorView)
     } catch (_: Throwable) {
       attachedActivityRef = null
       windowFocusListener = null
+      globalLayoutListener = null
     }
   }
 
-  private fun detachWindowFocusListener() {
+  private fun detachActivityListeners() {
     val activity = attachedActivityRef?.get()
-    val listener = windowFocusListener
 
-    if (activity != null && listener != null) {
+    if (activity != null) {
       try {
         val observer = activity.window?.decorView?.viewTreeObserver
-        if (observer?.isAlive == true) observer.removeOnWindowFocusChangeListener(listener)
+        if (observer?.isAlive == true) {
+          windowFocusListener?.let { observer.removeOnWindowFocusChangeListener(it) }
+          globalLayoutListener?.let { observer.removeOnGlobalLayoutListener(it) }
+        }
       } catch (_: Throwable) {
         // Ignore listener cleanup failure.
       }
@@ -647,6 +695,7 @@ class ToastDialogHost(
 
     attachedActivityRef = null
     windowFocusListener = null
+    globalLayoutListener = null
   }
 
   private fun scheduleZOrderMaintenance() {
@@ -740,7 +789,7 @@ class ToastDialogHost(
       }
     }
 
-    attachWindowFocusListener(activity)
+    attachActivityListeners(activity)
     mainHandler.postDelayed({ isRebumpingDialogs = false }, POST_REBUMP_SUPPRESSION_MS)
   }
 
@@ -752,7 +801,7 @@ class ToastDialogHost(
 
   override fun onHostDestroy() {
     entries.toList().forEach { removeEntry(it, emitRemoved = false) }
-    detachWindowFocusListener()
+    detachActivityListeners()
     mainHandler.removeCallbacksAndMessages(null)
     reactContext.removeLifecycleEventListener(this)
   }
