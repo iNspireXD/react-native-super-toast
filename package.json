@@ -15,6 +15,7 @@
   "files": [
     "src",
     "lib",
+    "CHANGELOG.md",
     "android",
     "ios",
     "cpp",

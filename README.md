@@ -19,6 +19,8 @@ for iOS and Android. Show success, error, loading, and actionable toasts above
 native modals and bottom sheets, with automatic keyboard avoidance.
 
 [![npm version](https://img.shields.io/npm/v/react-native-super-toast.svg)](https://www.npmjs.com/package/react-native-super-toast)
+[![npm downloads](https://img.shields.io/npm/dm/react-native-super-toast.svg)](https://www.npmjs.com/package/react-native-super-toast)
+[![CI](https://github.com/iNspireXD/react-native-super-toast/actions/workflows/ci.yml/badge.svg)](https://github.com/iNspireXD/react-native-super-toast/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/iNspireXD/react-native-super-toast/blob/main/LICENSE)
 
 For installation guides, API details, examples, and demos, visit the
