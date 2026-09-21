@@ -1,3 +1,5 @@
+# React Native Super Toast
+
 <p align="center">
   <a href="https://rn-super-toast.vercel.app/">
     <img src="https://raw.githubusercontent.com/iNspireXD/react-native-super-toast/main/docs/assets/super-toast-banner.png" alt="Super Toast — Toasts that render above everything." width="100%" />
@@ -12,13 +14,32 @@
   <a href="https://github.com/iNspireXD/react-native-super-toast/issues">Issues</a>
 </p>
 
-Native toasts for React Native that render above everything, including native
-modals and bottom sheets.
+A native toast notification library for React Native, built with a TurboModule
+for iOS and Android. Show success, error, loading, and actionable toasts above
+native modals and bottom sheets, with automatic keyboard avoidance.
+
+[![npm version](https://img.shields.io/npm/v/react-native-super-toast.svg)](https://www.npmjs.com/package/react-native-super-toast)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/iNspireXD/react-native-super-toast/blob/main/LICENSE)
 
 For installation guides, API details, examples, and demos, visit the
 [Super Toast documentation](https://rn-super-toast.vercel.app/docs).
 
+[Quickstart](#installation) · [Toasts above modals](#show-a-toast-above-a-react-native-modal) · [Keyboard behavior](#keyboard) · [Compatibility](#compatibility) · [Troubleshooting](#troubleshooting)
+
+## Native modal demos
+
+See React Native Super Toast display toast notifications above native modals on
+iOS and Android.
+
+| iOS                                                                                                                                                                                                                              | Android                                                                                                                                                                                                                                  |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="https://raw.githubusercontent.com/iNspireXD/react-native-super-toast/main/docs/assets/native-modal-ios.gif" alt="React Native Super Toast demo showing toast notifications above a native modal on iOS" width="280" /> | <img src="https://raw.githubusercontent.com/iNspireXD/react-native-super-toast/main/docs/assets/native-modal-android.gif" alt="React Native Super Toast demo showing toast notifications above a native modal on Android" width="280" /> |
+
+## Features
+
 - A small imperative `toast()` API with a single `<ToastHost />`
+- A code-generated native module (TurboModule) connecting the JavaScript API to
+  native iOS and Android implementations
 - `success`, `error`, `warning`, `info`, `loading`, and `promise` variants
 - Title, description, action, and cancel buttons
 - Light, dark, and system themes, with optional rich colors
@@ -39,17 +60,24 @@ npm install react-native-super-toast
 npx pod-install
 ```
 
+Run the pod installation step for iOS, then rebuild your native app on each
+platform. Installing JavaScript dependencies or refreshing Metro alone does
+not add the native module to an existing app binary.
+
 ## Setup
 
 Mount `ToastHost` once near the root of the app.
 
 ```tsx
-import { ToastHost } from 'react-native-super-toast';
+import { Button, View } from 'react-native';
+import { toast, ToastHost } from 'react-native-super-toast';
 
 export default function App() {
   return (
     <>
-      <YourApp />
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <Button title="Show toast" onPress={() => toast.success('Saved')} />
+      </View>
       <ToastHost />
     </>
   );
@@ -68,6 +96,49 @@ toast.error('Could not reach the server');
 toast.warning('Storage almost full');
 toast.info('New version available');
 ```
+
+### Show a toast above a React Native Modal
+
+Super Toast renders in native windows: dialog windows on Android and an overlay
+`UIWindow` on iOS. Toasts can appear above a native modal without moving the
+`ToastHost` into that modal or adjusting a React view's `zIndex`.
+
+With `ToastHost` mounted at the app root, use this screen to try it:
+
+```tsx
+import { useState } from 'react';
+import { Button, Modal, View } from 'react-native';
+import { toast } from 'react-native-super-toast';
+
+export function ModalExample() {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <View>
+      <Button title="Open modal" onPress={() => setVisible(true)} />
+      <Modal visible={visible} onRequestClose={() => setVisible(false)}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Button
+            title="Show toast above modal"
+            onPress={() => toast.success('Saved from the modal')}
+          />
+          <Button title="Close modal" onPress={() => setVisible(false)} />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+```
+
+### Toasts with bottom sheets
+
+Call `toast()` from a bottom-sheet callback just as you would from any other
+screen. Keep a single `ToastHost` near the app root. The
+[example app](https://github.com/iNspireXD/react-native-super-toast/tree/main/example)
+includes an integration with `@gorhom/bottom-sheet`.
+
+For text inputs inside a sheet, see [keyboard behavior](#keyboard). Bottom and
+center toasts avoid the software keyboard automatically.
 
 ### Actions
 
@@ -160,10 +231,10 @@ edge. An omitted edge keeps the default: `8`, or `16` when the device has no
 safe area inset on that edge.
 
 ```tsx
-<ToastHost offset={16} />
+<ToastHost offset={16} />;
 
 // Keep bottom toasts clear of a tab bar.
-<ToastHost offset={{ top: 8, bottom: 80 }} />
+<ToastHost offset={{ top: 8, bottom: 80 }} />;
 ```
 
 ### Keyboard
@@ -235,6 +306,52 @@ toast('Font icon', {
   in native windows above modals and bottom sheets.
 - Styles are limited to the keys listed in [Styling](#styling).
 - Plain `toast()` shows no icon.
+
+## Compatibility
+
+| Environment             | Current scope                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| iOS and Android         | Native implementations are included for both platforms.                                                                  |
+| React Native            | The example app uses React Native 0.85.0 and React 19.2.3. A wider version range has not been established here.          |
+| Architecture            | Uses a code-generated TurboModule. Validate other React Native versions and architecture configurations before adopting. |
+| Expo Go                 | Cannot load this package's custom native module.                                                                         |
+| Expo development builds | A native build containing the module is required; this repository does not include an Expo validation app.               |
+| Web                     | No web implementation is included.                                                                                       |
+
+The example app's configured versions are a reference, not a claim that every
+older or newer version is supported.
+
+## Troubleshooting
+
+### The SuperToast native module cannot be found
+
+Rebuild the native app after installing the package. On iOS, install pods first.
+Fast Refresh and restarting Metro do not rebuild native code. Confirm that you
+are running the rebuilt application rather than an older installed binary or
+Expo Go.
+
+### Toast settings are not applied
+
+Mount a single `ToastHost` near the app root to provide shared configuration.
+Check whether the individual toast call overrides settings such as `position`
+or `duration`. You do not need a separate host for each modal or bottom sheet.
+
+### A loading toast stays visible
+
+`toast.loading()` stays visible until updated or dismissed. Reuse its `id` with
+`toast.success()` or `toast.error()`, call `toast.dismiss(id)`, or use
+`toast.promise()` to follow an asynchronous operation.
+
+### Custom React elements or styles do not render
+
+Toast content is rendered with native views, not arbitrary JSX. Use the
+supported [styling options](#styling), [icons](#icons), and action buttons.
+
+For a reproducible native demo, see the
+[example app](https://github.com/iNspireXD/react-native-super-toast/tree/main/example).
+When [reporting an issue](https://github.com/iNspireXD/react-native-super-toast/issues),
+include the package version, React Native version, platform, architecture, and
+a minimal reproduction.
 
 ## Contributing
 

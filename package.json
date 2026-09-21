@@ -1,7 +1,7 @@
 {
   "name": "react-native-super-toast",
   "version": "0.1.0",
-  "description": "A performant toast library that renders above everything, including modals and bottom sheets",
+  "description": "A native toast notification library for React Native, built with a TurboModule for iOS and Android. Display toasts above modals and bottom sheets, with keyboard-aware positioning.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -42,8 +42,18 @@
   },
   "keywords": [
     "react-native",
+    "toast",
+    "toast-notification",
+    "react-native-toast",
+    "notification",
     "ios",
-    "android"
+    "android",
+    "modal",
+    "bottom-sheet",
+    "typescript",
+    "native-module",
+    "turbo-module",
+    "turbomodule"
   ],
   "repository": {
     "type": "git",
