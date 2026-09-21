@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.2.1](https://github.com/iNspireXD/react-native-super-toast/compare/v0.2.0...v0.2.1) (2026-09-21)
+
 # 0.2.0 (2026-09-21)
 
 
