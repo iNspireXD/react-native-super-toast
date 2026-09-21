@@ -1,6 +1,6 @@
 {
   "name": "react-native-super-toast",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A native toast notification library for React Native, built with a TurboModule for iOS and Android. Display toasts above modals and bottom sheets, with keyboard-aware positioning.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
