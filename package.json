@@ -164,7 +164,8 @@
       "publish": true
     },
     "github": {
-      "release": true
+      "release": true,
+      "host": "github.com"
     },
     "plugins": {
       "@release-it/conventional-changelog": {
