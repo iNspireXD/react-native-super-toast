@@ -1,13 +1,13 @@
 # React Native Super Toast
 
 <p align="center">
-  <a href="https://rn-super-toast.vercel.app/">
+  <a href="https://supertoast.karkiaswin.com.np/">
     <img src="https://raw.githubusercontent.com/iNspireXD/react-native-super-toast/main/docs/assets/super-toast-banner.png" alt="Super Toast — Toasts that render above everything." width="100%" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://rn-super-toast.vercel.app/docs">Documentation</a>
+  <a href="https://supertoast.karkiaswin.com.np/docs">Documentation</a>
   ·
   <a href="https://www.npmjs.com/package/react-native-super-toast">npm</a>
   ·
@@ -24,7 +24,7 @@ native modals and bottom sheets, with automatic keyboard avoidance.
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/iNspireXD/react-native-super-toast/blob/main/LICENSE)
 
 For installation guides, API details, examples, and demos, visit the
-[Super Toast documentation](https://rn-super-toast.vercel.app/docs).
+[Super Toast documentation](https://supertoast.karkiaswin.com.np/docs).
 
 [Quickstart](#installation) · [Toasts above modals](#show-a-toast-above-a-react-native-modal) · [Keyboard behavior](#keyboard) · [Compatibility](#compatibility) · [Troubleshooting](#troubleshooting)
 

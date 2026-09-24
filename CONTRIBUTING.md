@@ -4,7 +4,7 @@ Contributions are always welcome, no matter how large or small!
 
 We want this community to be friendly and respectful to each other. Please follow it in all your interactions with the project. Before contributing, please read the [code of conduct](./CODE_OF_CONDUCT.md).
 
-The public API and usage guides live in the [Super Toast documentation](https://rn-super-toast.vercel.app/docs). Please check them before proposing an API change and update them when a pull request changes documented behavior.
+The public API and usage guides live in the [Super Toast documentation](https://supertoast.karkiaswin.com.np/docs). Please check them before proposing an API change and update them when a pull request changes documented behavior.
 
 ## Development workflow
 
@@ -129,6 +129,6 @@ When you're sending a pull request:
 
 - Prefer small pull requests focused on one change.
 - Verify that linters and tests are passing.
-- Review the [documentation](https://rn-super-toast.vercel.app/docs) and make sure it remains accurate.
+- Review the [documentation](https://supertoast.karkiaswin.com.np/docs) and make sure it remains accurate.
 - Follow the pull request template when opening a pull request.
 - For pull requests that change the API or implementation, discuss with maintainers first by opening an issue.

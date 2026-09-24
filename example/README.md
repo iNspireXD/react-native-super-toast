@@ -44,5 +44,5 @@ This example is configured with React Native 0.85.0 and React 19.2.3. It is a na
 ## Documentation
 
 - [Installation and API reference](../README.md)
-- [Super Toast documentation website](https://rn-super-toast.vercel.app/docs)
+- [Super Toast documentation website](https://supertoast.karkiaswin.com.np/docs)
 - [Contribution and development workflow](../CONTRIBUTING.md)
